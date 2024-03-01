@@ -1,0 +1,145 @@
+---
+title: "Dada2 processing"
+author: "MW"
+date: "2024-01-29"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r packages, echo=FALSE}
+library(dada2)
+library(tidyverse)
+library(Biostrings)
+```
+
+Read in your sample list
+```{r sample_setup}
+SAMPLES <- scan("ume_hb_bac_samples.txt", what = "character")
+```
+
+Set variable to hold the path to the cutadapt trimmed fastq files
+```{r cd}
+trim_fq_path = "./trimmed_fastq_ume_hb_bac_samples/"
+```
+
+Set variables to hold the forward and reverse fastqs as well as the filtered fastqs that will be generated in the next step
+```{r read_containers}
+forward_reads <- paste0(trim_fq_path, (SAMPLES), "_R1_trimmed.fq.gz")
+reverse_reads <- paste0(trim_fq_path, (SAMPLES), "_R2_trimmed.fq.gz")
+
+filtered_forward_reads <- paste0(trim_fq_path, (SAMPLES), "_R1_filtered.fq.gz")
+filtered_reverse_reads <- paste0(trim_fq_path, (SAMPLES), "_R2_filtered.fq.gz")
+```
+
+Check the quality of reads in a few of the fastq files
+```{r fastq_quality}
+sample_list = list(forward_reads[3],forward_reads[253],forward_reads[354],forward_reads[575], reverse_reads[3],reverse_reads[253],reverse_reads[354],reverse_reads[575])
+lapply(sample_list, plotQualityProfile)
+```
+
+It seems that most reads keep high quality till about 200 bp so I will truncate the reads at this length. 
+```{r filter_reads}
+filtered_out <- filterAndTrim(forward_reads, filtered_forward_reads, reverse_reads, filtered_reverse_reads, truncLen = c(200, 200), maxEE = c(2, 2), rm.phix = TRUE, multithread = TRUE, minLen = 50)
+```
+
+Check what the read quality and length look like now. 
+```{r filtered_quality}
+filtered_sample_list = list(filtered_forward_reads[3],filtered_forward_reads[253],filtered_forward_reads[354],filtered_forward_reads[575], filtered_reverse_reads[3],filtered_reverse_reads[253],filtered_reverse_reads[354],filtered_reverse_reads[575])
+lapply(filtered_sample_list, plotQualityProfile)
+```
+
+Some of the input samples had no reads pass the filter. Check which ones these are. 
+```{r no_reads}
+empty_samples <- data.frame(SAMPLES) %>% 
+  mutate(dada2_input = filtered_out[,2]) %>% 
+  filter(dada2_input == 0)
+```
+
+Looks like one winter mouth and one nectar samples, and the rest are PCR controls. These empty samples will be excluded from the rest of the processing. 
+```{r samples_with_reads}
+no_reads_list <- sapply(empty_samples$SAMPLES, grep, filtered_forward_reads)
+filtered_forward_w_reads <- filtered_forward_reads[-c(no_reads_list)]
+filtered_reverse_w_reads <- filtered_reverse_reads[-c(no_reads_list)]
+```
+
+Next, generate an error model. 
+```{r error_model}
+err_forward_reads <- learnErrors(filtered_forward_w_reads, multithread = TRUE)
+err_reverse_reads <- learnErrors(filtered_reverse_w_reads, multithread = TRUE)
+```
+
+Visualize how well the estimated error rates match the observed. 
+```{r error_visualization}
+plotErrors(err_forward_reads, nominalQ = TRUE)
+plotErrors(err_reverse_reads, nominalQ = TRUE)
+```
+
+Next is the dereplication step. 
+```{r dereplication}
+derep_forward <- derepFastq(filtered_forward_w_reads, verbose = TRUE)
+names(derep_forward) <- SAMPLES[-c(no_reads_list)]
+
+derep_reverse <- derepFastq(filtered_reverse_w_reads, verbose = TRUE)
+names(derep_reverse) <- SAMPLES[-c(no_reads_list)]
+```
+
+Infer amplicon sequence variants (ASV). 
+```{r dada_asv}
+dada_forward <- dada(derep_forward, err = err_forward_reads, multithread = TRUE)
+dada_reverse <- dada(derep_reverse, err = err_reverse_reads, multithread = TRUE)
+```
+
+Now we merge the amplicon pairs together. 
+```{r merge_pairs}
+merged_amplicons <- mergePairs(dada_forward, derep_forward, dada_reverse, derep_reverse, verbose = TRUE)
+```
+
+Generate a count table for the different samples
+```{r count_table}
+seqtab <- makeSequenceTable(merged_amplicons)
+dim(seqtab)
+```
+
+Remove any chimeric reads. This step takes a while so I have provided a saved data object ("seqtab_nochim.rds") that can just be loaded in. If you would like to compute it then un-comment the code (lines 109-110) and comment the loading of the saved object (line 112).
+```{r no_chimeras}
+# seqtab.nochim <- removeBimeraDenovo(seqtab, multithread = TRUE, verbose = TRUE)
+# sum(seqtab.nochim)/sum(seqtab)
+
+seqtab.nochim <- readRDS("seqtab_nochim.rds")
+```
+
+Here's a quick function to check when and where sequences were dropped throughout the processing. 
+```{r getN}
+getN <- function(x) sum(getUniques(x))
+```
+
+Need to remove rows with no reads from the "filtered_out" matrix. 
+```{r filtered_out_with_reads}
+filtered_out_w_reads = filtered_out[-c(no_reads_list),]
+```
+
+Create a summary table to see how successful the processing was. 
+```{r summary_table}
+summary_tab <- data.frame(row.names = SAMPLES[-c(no_reads_list)], dada2_input = filtered_out_w_reads[,1], filtered = filtered_out_w_reads[,2], dada_f = sapply(dada_forward, getN), merged = sapply(merged_amplicons, getN), nonchim = rowSums(seqtab.nochim), perc_reads_retained = round(rowSums(seqtab.nochim)/filtered_out_w_reads[,1]*100, 1))
+summary_tab
+```
+
+Assign taxonomy for bacterial reads. 
+```{r assign_taxa}
+taxa <- assignTaxonomy(seqtab.nochim, "silva_nr99_v138.1_wSpecies_train_set.fa",
+                       multithread = T, tryRC = T)
+rownames(taxa) = paste("ASV", seq(1:dim(seqtab.nochim)[2]), sep = "_")
+```
+
+Prepare asv counts and taxonomy for transfer to phyloseq later on.
+```{r final_products}
+asv_seqs <- DNAStringSet(getSequences(seqtab.nochim))
+asv_counts <- seqtab.nochim
+colnames(asv_counts) = paste("ASV", seq(1:dim(seqtab.nochim)[2]), sep = "_")
+names(asv_seqs) = colnames(asv_counts)
+```
+

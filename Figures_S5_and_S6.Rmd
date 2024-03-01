@@ -1,0 +1,99 @@
+---
+title: "Figures S5 and S6"
+author: "MW"
+date: "2024-02-02"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r packages}
+library(tidyverse)
+library(ggsignif)
+library(ggtext)
+library(ggbeeswarm)
+library(gghighlight)
+library(ellipse)
+source("helper_functions.R")
+```
+
+Set colors. 
+```{r aesthetics}
+season_fills = c("summer" = "gray100", "winter" = "gray38")
+origin_colors = c("crop" = "#f4a259", "mouth" = "#bc4b51")
+```
+
+Load in the data. 
+```{r data_load}
+metadata <- read_csv("ume_hb_sample_metadata.csv")
+
+qpcr_data <- read_csv("qpcr_analysis_input_data.csv") 
+
+qd <- left_join(qpcr_data, metadata, by = join_by("samples" == "sample")) %>% 
+  mutate(quantification = as.numeric(quantification), 
+         season = factor(season, levels = c("summer", "winter")), 
+         origin = factor(origin, levels = c("crop", "mouth")))
+```
+
+Plot Figure S6 quantitative PCR results. 
+```{r qpcr_plot}
+ggplot(qd, aes(x = season, y = quantification)) + 
+  stat_summary(fun = mean, geom = "crossbar", width = 0.9, alpha = 0.8) +
+  geom_beeswarm(aes(fill = season), color = "black", cex = 2.5, shape = 21, alpha = 0.8) +
+  scale_fill_manual(values = season_fills) +
+  facet_wrap(~ origin) + 
+  scale_y_log10(limits = c(1, 10000000),  labels = scales::trans_format("log10", scales::math_format(10^.x))) +
+  geom_signif(comparisons = list(c("summer", "winter")), 
+              map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, "ns" = 1), 
+              y_position = c(6.25,6.25)) +
+  ylab("Total 16S rRNA gene copies") + theme_classic() +
+  theme(legend.position = "none", axis.title.x = element_blank(), 
+        strip.background = element_blank(), strip.text = element_text(face = "bold", size = 12))
+```
+
+For Figure S5, we used the product of each sample's qPCR quantification and the relative proportion of each taxa in the sample to calculate the absolute abundance of each taxa in each sample. We used this calculation to examine a PCoA based on the absolute bacterial abundance of each sample. 
+```{r abs_pcoa, message=FALSE}
+cm_abs <- prune_samples(qd$samples, cmn_prop)
+sample_data(cm_abs) <- sample_data(left_join(data.frame(cm_abs@sam_data) %>% 
+                                           rownames_to_column(var = "name"), 
+                                           qd %>% dplyr::select(samples, quantification), by = join_by("name" == "samples")) %>% 
+                                     column_to_rownames(var = "name"))
+
+# Transform relative abundance counts to absolute abundance by multiplying proportion by the number of 16S rRNA gene copies in each sample. 
+otu_table(cm_abs) <- cm_abs@otu_table * cm_abs@sam_data$quantification
+
+cm_abs = subset_pcoa(cm_abs, d = "wunifrac")
+
+abs_pcoas = lapply(list(c("crop", "summer"), c("crop", "winter"), c("mouth", "summer"), c("mouth", "winter")), 
+         function(x) {
+           return(plot_PCoA_w_highlight(cm_abs$physeq, paste(x, collapse = "_"), cm_abs$values, colorcode = "origin", 
+                                        shapecode = "bee_species", linecode = "bee_species", color_scheme = origin_colors, 
+                                        line_scheme = c("cerana" = "dotted", "mellifera" = "solid"), shape_scheme = bee_shapes, 
+                                        catg1 = "origin", grp1 = x[[1]], catg2 = "season", grp2 = x[[2]], op = "and"))
+         })
+  
+names(abs_pcoas) = unlist(lapply(list(c("crop", "summer"), c("crop", "winter"), c("mouth", "summer"), c("mouth", "winter")), paste, collapse = "_"))
+
+grid.arrange(abs_pcoas$crop_summer[[1]]$pcoa_w_ell + basic_theme + theme(plot.margin = unit(c(5.5, 6.5, 5.5, 5.5), units = "points")), 
+             abs_pcoas$crop_winter[[1]]$pcoa_w_ell + basic_theme + theme(axis.text.x = element_blank(), axis.ticks.x = element_blank()), 
+             abs_pcoas$mouth_summer[[1]]$pcoa_w_ell + basic_theme + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank()), 
+             abs_pcoas$mouth_winter[[1]]$pcoa_w_ell + basic_theme + minimal_theme, 
+             textGrob(paste0("Axis 1 (", round(cm_abs$values$Relative_eig[1] * 100, 1), "%)"), gp = gpar(col = "black", fontsize = 16)),
+             textGrob(paste0("Axis 2 (", round(cm_abs$values$Relative_eig[2] * 100, 1), "%)"), gp = gpar(col = "black", fontsize = 16), rot = 90), 
+             layout_matrix = rbind(c(NA, NA, NA, NA), c(6, 2, 4, NA), c(6, 1, 3, NA), c(NA, 5, 5, NA)), 
+             widths = c(0.03, 0.47, 0.45, 0.05), heights = c(0.05, 0.45, 0.46, 0.04))
+```
+Beta diversity statistics.
+```{r betadiv_stats}
+set.seed(1279466746)
+adonis2(UniFrac(cm_abs$physeq, weighted = T) ~ origin + season + bee_species, data = data.frame(cm_abs$physeq@sam_data))
+
+cm_abs_stats = lapply(list(c("crop", "season"), c("mouth", "season")), function(v) {
+                              ps = cm_abs$physeq %>% filter_sample_data(origin == v[1])
+                              return(betadiv_stats(ps, parameter = v[2]))
+                              })
+names(cm_abs_stats) = c("crop_season", "mouth_season")
+```
+

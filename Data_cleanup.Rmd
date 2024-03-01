@@ -1,0 +1,111 @@
+---
+title: "Data Cleaning"
+author: "MW"
+date: "2024-01-29"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r packages, echo=FALSE}
+library(phyloseq)
+library(vegan)
+library(tidyverse)
+library(DECIPHER)
+library(phangorn)
+```
+Wrangle the data to make it more organized. First, shorten sample names. 
+```{r shorten_sample_names}
+rownames(asv_counts) <- gsub("-", "_", gsub(paste(c("__515f", "winter_", "bac__", "_S[0-9]+", "_L001"), collapse = "|"), "", rownames(asv_counts)))
+```
+
+Exclude ASVs found in the negative controls for each plate. First identify the ASVs with reads in the negative control samples and delete those ASVs from the samples. 
+```{r nc_cleanup}
+sample_metadata <- read_csv("ume_hb_sample_metadata.csv")
+
+plate_ids = c("JB_S_B1", "JB_S_B2", "^JB_W_B1", "^JB_W_B2", "2019_UME_W_B1", "2019_UME_W_B2", "2019_JB_W_B1_M", "2019_JB_W_B2_M")
+clean_asv_counts <- asv_counts
+all_contaminants <- vector("list", length(plate_ids))
+names(all_contaminants) <- plate_ids
+for (id in plate_ids) {
+  neg_controls <- sample_metadata %>% 
+    filter(grepl(id, sample) & origin == "NC" & sample %in% rownames(asv_counts))
+  contaminants <- names(which(colSums(asv_counts[neg_controls$sample, ]) > 0))
+  clean_asv_counts[grep(id, rownames(clean_asv_counts)), contaminants] <- 0
+  all_contaminants[[id]] <- contaminants
+}
+
+ume_hb_samples = sample_metadata %>% filter(origin != "NC")
+```
+
+Make sure only organisms in the bacterial kingdom are present, and exclude any chloroplast, or mitochondria from analysis.308 ASVs as chloroplast, 464 as mitochondria, and 96 ASVs are eukarya or archaea. We also determined that the genus Cellulosimicrobium is a contaminant so we will exclude the 133 taxa classified as Cellulosimicrobium. We will exclude a total of 1001 taxa. 
+```{r unwanted_taxa}
+asv_taxa <- taxa[-which(taxa == "Chloroplast" | taxa == "Cellulosimicrobium" | taxa == "Mitochondria", arr.ind = TRUE)[,1],]
+asv_taxa <- asv_taxa[which(asv_taxa[,"Kingdom"] == "Bacteria"),]
+dim(taxa)[1] - dim(asv_taxa)[1]
+```
+
+Get rid of unwanted taxa from sequences and counts tables. 
+```{r no_unwanted_taxa}
+clean_asv_counts <- clean_asv_counts[, rownames(asv_taxa)]
+asv_sequences <- asv_seqs[rownames(asv_taxa)]
+```
+
+Create phyloseq object for analysis. 
+```{r phyloseq_handoff}
+TAX <- tax_table(asv_taxa)
+OTU <- otu_table(clean_asv_counts, taxa_are_rows = FALSE)
+SAM <- sample_data(ume_hb_samples %>% column_to_rownames(var = "sample"))
+SEQ <- refseq(asv_sequences)
+ps1 <- merge_phyloseq(TAX, OTU, SAM, SEQ)
+```
+
+We will only keep taxa that are at least 1% prevalent, and exclude any taxa or samples that contain no reads. 
+```{r phyloseq_cleanup}
+prevalenceThreshold <- 0.01 * min(count(sample_data(ps1), origin)$n)
+taxa_prev <- apply(otu_table(ps1), 2, FUN = function(x) {sum(x > 0)})
+ps2 <- prune_taxa(names(which(taxa_prev >= prevalenceThreshold)), ps1)
+ps3 <- prune_samples(sample_sums(ps2) != 0, ps2)
+```
+
+Align the sequences in the phyloseq object with the goal of creating a phylogeny. 
+```{r align_ps_sequences}
+alignment <- AlignSeqs(DNAStringSet(refseq(ps3)), anchor = NA, verbose = TRUE)
+```
+
+Convert the alignment into phyDat format and compare pairwise distances.
+```{r phydat}
+phangAlign <- phyDat(as(alignment, "matrix"), type = "DNA")
+dm <- dist.ml(phangAlign)
+```
+
+Construct a neighbor-joining tree. 
+```{r nj}
+treeNJ <- NJ(dm)
+```
+
+Fit a generalized time-reversible with gamma rate variation maximum likelihood tree using the neighbor-joining tree as a starting point. This step takes a while so I have provided a saved data object ("ume_hb_fitGTR.rds") that can just be loaded in. If you would like to compute it then un-comment the code (line 97) and comment the loading of the saved object (line 99).
+```{r fitGTR}
+fit <- pml(treeNJ, data = phangAlign)
+fitGTR <- update(fit, k = 4, inv = 0.2)
+# fitGTR <- optim.pml(fitGTR, model = "GTR", optInv = TRUE, optGamma = TRUE, rearrangement = "stochastic", control = pml.control(trace = 0))
+
+fitGTR <- readRDS("ume_hb_fitGTR.rds")
+```
+
+Merge the phylogeny with the rest of the phyloseq object. 
+```{r ps_phylog}
+cmn_ps <- merge_phyloseq(phy_tree(fitGTR$tree), ps3)
+```
+
+
+
+
+
+
+
+
+
+

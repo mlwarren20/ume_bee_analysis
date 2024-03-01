@@ -1,0 +1,57 @@
+---
+title: "figure 2 and S2"
+author: "MW"
+date: "2024-01-31"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r packages, echo=FALSE}
+library(eulerr)
+library(VennDiagram)
+library(MicrobiotaProcess)
+library(ggnewscale)
+library(venn)
+library(grid)
+library(gridExtra)
+```
+
+Here is the color scheme used. 
+```{r aesthetics}
+origin_colors = c("mouth" = "#bc4b51", "crop" = "#f4a259", "nectar" = "#648FFF")
+```
+
+Comparing the number of OTUs in the winter season for each sample type. 
+```{r winterVennD}
+cmnOTU@sam_data$origin <- factor(cmnOTU@sam_data$origin, levels = c("crop", "mouth", "nectar"))
+winTVL <- get_vennlist(obj = subset_samples(cmnOTU, season == "winter"), "origin")
+winVD = venn.diagram(winTVL, height = 5, width = 5, filename = NULL, fill = origin_colors[c(1,2,3)], cat.col = c(NA, NA, NA), 
+                     alpha = 0.75, fontfamily = "serif", fontface = "bold", cex = 1.2, cat.cex = 1.3, cat.default.pos = "text", 
+                     col = "black", cat.dist = 0.1, margin = 0.1, lwd = 2, lty = "solid", euler.d = F, scaled = F, 
+                     inverted = T)
+grid.draw(winVD)
+```
+
+Plot Figure S2. Check to see that this pattern holds true for each *Apis* species. 
+```{r beeVennD}
+ceranaTVL <- get_vennlist(obj = subset_samples(cmnOTU, bee_species == "cerana" & season == "winter"), "origin")
+ceranaVD = venn.diagram(ceranaTVL, height = 5, width = 5, filename = NULL, fill = origin_colors[c(1,2,3)], cat.col = c(NA, NA, NA), 
+                     alpha = 0.75, fontfamily = "serif", fontface = "bold", cex = 1.2, cat.cex = 1.3, cat.default.pos = "text", 
+                     col = "black", cat.dist = 0.1, margin = 0.1, lwd = 2, lty = "solid", euler.d = F, scaled = F, 
+                     inverted = T)
+
+melliferaTVL <- get_vennlist(obj = subset_samples(cmnOTU, bee_species == "mellifera" & season == "winter"), "origin")
+melliferaVD = venn.diagram(melliferaTVL, height = 5, width = 5, filename = NULL, fill = origin_colors[c(1,2,3)], cat.col = c(NA, NA, NA), 
+                     alpha = 0.75, fontfamily = "serif", fontface = "bold", cex = 1.2, cat.cex = 1.3, cat.default.pos = "text", 
+                     col = "black", cat.dist = 0.1, margin = 0.1, lwd = 2, lty = "solid", euler.d = F, scaled = F, 
+                     inverted = T)
+grid.arrange(ceranaVD, melliferaVD, nrow = 1)
+```
+
+
+
+
+
