@@ -4,9 +4,10 @@ This repository includes all the scripts necessary to process and analyze the ne
 
 ### To run these scripts you will need the following: 
 1. bash and python packages: cutadapt v , mafft v , trimAI v , SuperCRUNCH v , and iqtree v2.2.2.6
-2. All R packages can be installed by running `r renv::restore()` using the renv package.
+2. All R packages can be installed by running `renv::restore()` using the renv package.
 3. The amplicon sequences available for download from NCBI (PRJNA1076572)
-4. The strain sequences are available to download from NCBI and their accession numbers are available in table S4. 
+4. The Silva 138.1 prokaryotic SSU taxonomic training data can be downloaded from <https://zenodo.org/records/4587955>.
+5. The strain sequences are available to download from NCBI and their accession numbers are available in table S4. 
 
 ### To reproduce the processing and analysis: 
 1. The raw amplicon sequences are processed first with the bash script "ume_cutadapt.sh" and then cleaned up with the scripts "dada2_processing.Rmd" followed by "Data_cleanup.Rmd". 
