@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r packages, echo=FALSE}
+```{r setup, echo=FALSE}
 library(phyloseq)
 library(vegan)
 library(tidyverse)
@@ -71,7 +71,7 @@ ps3 <- prune_samples(sample_sums(ps2) != 0, ps2)
 ```
 
 Align the sequences in the phyloseq object with the goal of creating a phylogeny. 
-```{r align_ps_sequences}
+```{r align_ps_sequences, echo=FALSE}
 alignment <- AlignSeqs(DNAStringSet(refseq(ps3)), anchor = NA, verbose = TRUE)
 ```
 
@@ -86,7 +86,7 @@ Construct a neighbor-joining tree.
 treeNJ <- NJ(dm)
 ```
 
-Fit a generalized time-reversible with gamma rate variation maximum likelihood tree using the neighbor-joining tree as a starting point. This step takes a while so I have provided a saved data object ("ume_hb_fitGTR.rds") that can just be loaded in. If you would like to compute it then un-comment the code (line 97) and comment the loading of the saved object (line 99).
+Fit a generalized time-reversible with gamma rate variation maximum likelihood tree using the neighbor-joining tree as a starting point. This step takes a while so I have provided a saved data object ("ume_hb_fitGTR.rds") that can just be loaded in. If you would like to compute it then un-comment the code (line 93) and comment the loading of the saved object (line 95).
 ```{r fitGTR}
 fit <- pml(treeNJ, data = phangAlign)
 fitGTR <- update(fit, k = 4, inv = 0.2)

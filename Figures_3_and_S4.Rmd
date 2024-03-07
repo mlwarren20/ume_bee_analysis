@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r packages_and_setup}
+```{r packages_and_setup, echo=FALSE}
 options(dplyr.summarise.inform = FALSE)
 library(phyloseq)
 library(tidyverse)
@@ -19,21 +19,9 @@ library(microbiome)
 source("helper_functions.R")
 ```
 
-This script produces the alpha diversity Figures 3 and S4 in the manuscript. We begin by clustering ASVs to OTU at 97% identity to make sure we see the same trends even when we allow for more variability. Here we used the methods described in <https://github.com/benjjneb/dada2/issues/947>
-```{r OTU_clusters}
-# Set the number of cpus for clustering
-nproc <- 6
-dna <- refseq(cmn_ps)
-aln <- AlignSeqs(dna, processors = nproc)
-d <- DistanceMatrix(aln, processors = nproc)
-clusters <- IdClusters(d, method = "complete", cutoff = 0.03, processors = nproc)
-cmn_OTU <- merge_taxa_vec(cmn_ps, group = clusters$cluster)
-cmnOTU <- taxa_wrangle(cmn_OTU)
-```
-
-We made a data frame that included sample metadata as well as various alpha diversity estimates. Since we sampled the Nishi-honjo site twice, we labeled the summer sampling as Nishi-honjo_S site and the winter sampling as Nishi-honjo_W site. 
+This script produces the alpha diversity Figures 3 and S4 in the manuscript. We made a data frame that included sample metadata as well as various alpha diversity estimates. Since we sampled the Nishi-honjo site twice, we labeled the summer sampling as Nishi-honjo_S site and the winter sampling as Nishi-honjo_W site. 
 ```{r alpha_div}
-alpha_measures = c("Shannon", "Chao1", "Observed")
+alpha_measures = c("Shannon", "Observed")
 cmn_alpha <- data.frame(cmnOTU@sam_data, estimate_richness(cmnOTU, measures = alpha_measures)) %>% 
   mutate(site2 = ifelse(site == "Nishi-honjo", ifelse(season == "winter", "Nishi-Honjo_W", "Nishi-Honjo_S"), site), 
          site_alpha = factor(site2, levels = c("Ichiigawa", "Kiyokawa 1", "Oshine 1", "Nishi-Honjo_S","Nishi-Honjo_W", "Higashi-honjo", "Hirono", "Kamihaya", "Kiyokawa 2", "Nagano", "Oshine 2", "Shimanose", "Yamauchi")), 
@@ -70,7 +58,7 @@ alpha_stats
 Here are the color and shape schemes used. 
 ```{r aesthetics}
 origin_colors = c("crop" = "#f4a259", "mouth" = "#bc4b51", "nectar" = "#648FFF")
-origin_shapes = c("crop" = 21, "mouth" = 23, "nectar" = 22)
+origin_shapes = c("crop" = 25, "mouth" = 23, "nectar" = 22)
 bee_shapes = c("cerana" = 16, "mellifera" = 17)
 ```
 
@@ -100,14 +88,15 @@ pseudo_summer_nectar = data.frame(origin = rep("nectar", 4), sample_name = rep(N
                                   Lk_like_CFU_crop = rep(NA, 4), Pa_like_CFU_crop = rep(NA, 4), elevation = rep(NA, 4), 
                                   longitude = rep(NA, 4), latitude = rep(NA, 4), 
                                   site = c("Ichiigawa", "Kiyokawa 1", "Oshine 1", "Nishi-Honjo_S"), 
-                                  Observed = rep(NA, 4), Chao1 = rep(NA, 4), se.chao1 = rep(NA, 4), 
-                                  Shannon = rep(NA, 4), site2 = c("Ichiigawa", "Kiyokawa 1", "Oshine 1", "Nishi-Honjo_S"), 
+                                  Observed = rep(NA, 4), Shannon = rep(NA, 4), 
+                                  site2 = c("Ichiigawa", "Kiyokawa 1", "Oshine 1", "Nishi-Honjo_S"), 
                                   site_alpha = c("Ichiigawa", "Kiyokawa 1", "Oshine 1", "Nishi-Honjo_S"), 
                                   pielou = rep(NA, 4))
 ```
 
 Next we bootstrap the alpha diversity model with site as a random effect, and create plots of both the alpha diversity and random effect coefficient for each alpha diversity measure. 
 ```{r alpha_bootstrap}
+set.seed(1279466746)
 alpha_sim = lapply(ss_comb, function(tissue) {
     alpha_df <- alpha_wrangle(cmn_alpha, tissue)
     results = lapply(alpha_measures, function(m) {
@@ -135,18 +124,20 @@ names(alpha_sim) = c("crop", "mouth", "nectar", "summer_crop", "winter_crop", "s
 
 The code below creates Figure 3. 
 ```{r fig3}
-# Save 3.5 x 8 inches
-grid.arrange(alpha_sim$crop$Shannon$alpha_plot + xlim(-0.2, 4) + theme_classic() + 
-               theme(axis.title.x = element_blank(), legend.position = "none"), 
-             alpha_sim$mouth$Shannon$alpha_plot + xlim(-0.2, 4) + theme_classic() + 
-               theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(), 
-                     axis.title.y = element_blank(), legend.position = "none"), 
-             alpha_sim$nectar$Shannon$alpha_plot + xlim(-0.2, 4) + theme_classic() + 
-               theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(), 
-                     axis.title = element_blank(), legend.position = "none"), 
-             layout_matrix = rbind(c(1, 2, 3), c(1, 2, 3), c(NA, 2, NA)), 
-             heights = c(0.255, 0.65, 0.05), 
-             widths = c(0.42, 0.28, 0.28))
+# Save 8 x 4 inches
+grid.arrange(alpha_sim$crop$Shannon$alpha_plot + ylim(-0.2, 4) + theme_classic() + 
+                 theme(axis.title = element_blank(), axis.text.x = element_blank(), 
+                       axis.ticks.x = element_blank(), legend.position = "none"), 
+             alpha_sim$mouth$Shannon$alpha_plot + ylim(-0.2, 4) + theme_classic() + 
+                 theme(axis.title = element_blank(), axis.ticks.x = element_blank(), 
+                       axis.text.x = element_blank(), legend.position = "none"), 
+             alpha_sim$nectar$Shannon$alpha_plot + ylim(-0.2, 4) + theme_classic() + 
+                 theme(axis.title = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1), 
+                       legend.position = "none"), 
+             textGrob("Shannon", rot = 90, gp = gpar(col = "black", fontsize = 16)),
+             layout_matrix = rbind(c(NA, 1), c(4, 2), c(NA, 3)), 
+             heights = c(0.3, 0.3, 0.4), 
+             widths = c(0.04, 0.96))
 ```
 
 The code below creates Figure S4. 
@@ -161,7 +152,7 @@ grid.arrange(alpha_sim$crop$Shannon$ranef_plot + xlim(-1.5, 2.5) + theme_classic
                      axis.title = element_blank()), 
              layout_matrix = rbind(c(1, 2, 3), c(1, 2, 3), c(NA, 2, NA)), 
              heights = c(0.255, 0.65, 0.05), 
-             widths = c(0.4, 0.3, 0.3))
+             widths = c(0.44, 0.28, 0.28))
 ```
 
 

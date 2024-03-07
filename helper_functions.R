@@ -27,6 +27,7 @@ taxa_wrangle = function(ps, taxdf = NULL) {
 
 # Beta diversity ----------------------------------------------------------
 subset_pcoa <- function(physeq, d = "bray") {
+  set.seed(1279466746)
   if (d %in% c("bray", "jaccard")) {
     ps = veganify(physeq)
     if (d == "bray") {
@@ -103,21 +104,23 @@ plot_PCoA_w_highlight <- function(phyobj, phyname, values, colorcode, shapecode,
     y_name = paste0("Axis.", yaxis)
     
     ellipse_df = draw_ellipses(shapecode, param2 = grp1, np2 = catg1, physeq = ellipse_ps, axis1 = x_name, axis2 = y_name)
-    if (grp1 == "nectar") {
+    
+    if ("nectar" %in% unique(DATA$origin)) {
       others = rbind(crossing(c("crop", "mouth"), unique(DATA[,catg2])), c("nectar", "winter"))
     } else {
       others = rbind(crossing(c("crop", "mouth"), unique(DATA[,catg2])))
     }
     
-    f_df = do.call(rbind, apply(others, MARGIN = 1, function(x) {
-      ps = prune_samples(DATA[,catg1] == x[[1]] & DATA[,catg2] == x[[2]], phyobj)
+    f_df = do.call(rbind, apply(others, MARGIN = 1, function(y) {
+      ps = prune_samples(DATA[,catg1] == y[[1]] & DATA[,catg2] == y[[2]], phyobj)
       df = draw_ellipses(shapecode, physeq = ps, axis1 = x_name, axis2 = y_name)
       return(df)
     }))
     
     total_lims = lapply(2:3, function(x) {
-      c = c(DATA[,x_name], ellipse_df[,x], f_df[,x])
-      return(list("high" = max(c), "low" = min(c)))
+      d_col = ifelse(x == 2, x_name, y_name)
+      c = c(DATA[,d_col], ellipse_df[,x], f_df[,x])
+      return(list(lo = min(c), hi = max(c)))
     })
     names(total_lims) = c("x", "y")
     
@@ -128,8 +131,8 @@ plot_PCoA_w_highlight <- function(phyobj, phyname, values, colorcode, shapecode,
       suppressWarnings(geom_point(aes(color = .data[[colorcode]], shape = .data[[shapecode]], text = sample_name), alpha = 0.7, size = 2)) +
       geom_vline(xintercept = 0, color = "darkgrey", linetype = "dashed") + 
       geom_hline(yintercept = 0, color = "darkgrey", linetype = "dashed") +
-      xlim(total_lims$x$low, total_lims$x$high) +
-      ylim(total_lims$y$low, total_lims$y$high) +
+      xlim(total_lims$x$lo, total_lims$x$hi) +
+      ylim(total_lims$y$lo, total_lims$y$hi) +
       scale_color_manual("Sample type", values = color_scheme) +
       labs(color = colorcode, shape = shapecode, line = shapecode) +
       theme_classic() + 
@@ -166,6 +169,7 @@ plot_PCoA_w_highlight <- function(phyobj, phyname, values, colorcode, shapecode,
 
 # Function to do the permanova, betadisper, and tukeyhsd on betadisper real quick
 perma_run = function(ps, parameter) {
+  set.seed(1279466746)
   dist = UniFrac(ps, weighted = T)
   form = as.formula(paste0("dist ~ ", parameter))
   perma = adonis2(form, data = data.frame(sample_data(ps)))
@@ -191,6 +195,7 @@ adonis_pairs = function(ps, parameter) {
 betadiv_stats = function(ps, parameter) {
   dist = UniFrac(ps, weighted = T)
   form = as.formula(paste0("dist ~ ", parameter))
+  set.seed(1279466746)
   perma = adonis2(form, data = data.frame(sample_data(ps)))
   perma_pair = adonis_pairs(ps, parameter)
   betadisp = (with(data.frame(sample_data(ps)), betadisper(dist, get(parameter))))
@@ -204,6 +209,7 @@ betadiv_stats = function(ps, parameter) {
 # Differential abundance --------------------------------------------------
 dif_abund_deseq <- function(physeq, variable, t = "Wald", ft = "parametric", 
                             alpha = NULL, physeq_name, ...) {
+  set.seed(1279466746)
   otu_table(physeq) <- otu_table(physeq) + 1
   dds = phyloseq_to_deseq2(physeq, reformulate(variable))
   dds = DESeq(dds, test = t, fitType = ft)
@@ -280,7 +286,8 @@ random_effect_plot <- function(ref_df, tissue) {
   p = df %>% ggplot(aes(med, site)) +
     geom_vline(xintercept = 0, linetype = 2, color = "gray50") + 
     geom_errorbar(aes(xmin = lo, xmax = hi)) + 
-    geom_point(color = origin_colors[[tissue[1]]])
+    geom_point(color = origin_colors[[tissue[1]]]) +
+    xlab("median coefficient")
   return(p)
 }
 
@@ -293,15 +300,15 @@ alpha_results_df <- function(alpha_res) {
 }
 
 alpha_results_plot <- function(rich_df, alpha_df, tissue, m) {
-  p = rich_df %>% ggplot(aes(med, site)) +
-    geom_jitter(data = alpha_df, aes(x = get(m), y = site_alpha, shape = bee_species), 
+  p = rich_df %>% ggplot(aes(site, med)) +
+    geom_jitter(data = alpha_df, aes(x = site_alpha, y = get(m), shape = bee_species), 
                 alpha = 0.7, width = 0.2, color = origin_colors[[tissue[1]]], size = 2) +
     scale_shape_manual(values = bee_shapes) +
-    geom_errorbar(aes(xmin = lo, xmax = hi), width = 0.2) + 
+    geom_errorbar(aes(ymin = lo, ymax = hi), width = 0.2) + 
     geom_point(size = 3, shape = origin_shapes[[tissue[1]]], fill = origin_colors[[tissue[1]]]) +
-    xlab(m) + 
+    ylab(m) + 
     theme_classic() + 
-    theme(axis.title.y = element_blank())
+    theme(axis.title.x = element_blank())
 }
 
 
@@ -316,14 +323,15 @@ clam_plot = function(df1, df2 = NULL, title = NULL, y_lab = T) {
     scale_x_log10(limits = c(1, 100000), breaks = c(1e+01, 1e+03, 1e+05), labels = c("1e+01", "1e+03", "1e+05")) + 
     scale_y_log10(limits = c(1, 100000), breaks = c(1e+01, 1e+03, 1e+05), labels = c("1e+01", "1e+03", "1e+05")) +
     geom_abline(slope = 1, intercept = 0, color = "darkgrey", linetype = "dashed") +
-    xlab(paste0("Log(", str_to_sentence(str_split_i(cn[2], "_", 2)), " OTU abundance + 1)")) +
+    xlab(paste0("Log(", str_split_i(cn[2], "_", 2), " ASV<sub>97</sub> abundance + 1)")) +
     ggtitle(title) + theme_classic() +
-    theme(plot.title = element_text(hjust = 0.5, vjust = 0.5, face = "bold", 
-                                    size = 16, margin = margin(t = 0, r = 0, b = 20, l = 0)),
+    theme(plot.title = element_text(hjust = 0.5, vjust = 0.5, size = 16, 
+                                    margin = margin(t = 0, r = 0, b = 20, l = 0)),
           legend.position = "none",
-          axis.text = element_text(size = 10), axis.title = element_text(size = 12))
+          axis.text = element_text(size = 10), axis.title.x = element_markdown(size = 12))
   if (y_lab == T) {
-    p + ylab(paste0("Log(", str_to_sentence(str_split_i(cn[3], "_", 2)), " OTU abundance + 1)"))
+    p + ylab(paste0("Log(", str_split_i(cn[3], "_", 2), " ASV<sub>97</sub> abundance + 1)")) +
+      theme(axis.title.y = element_markdown(size = 12))
   } else {
     p + theme(axis.title.y = element_blank())
   }
@@ -343,7 +351,8 @@ clam_barplot = function(df, title = NULL, y_lab = T) {
           axis.title.y = element_text(size = 12), 
           axis.text = element_text(size = 10)) 
   if (y_lab == T) {
-    p + ylab("Proportion of OTUs Classified")  
+    p + ylab(bquote("Proportion of ASVs<sub>97</sub> Classified")) + 
+      theme(axis.title.y = element_markdown(size = 12))
   } else {
     p + theme(axis.title.y = element_blank())
   }

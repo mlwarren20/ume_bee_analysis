@@ -9,17 +9,14 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r packages, echo=FALSE}
+```{r setup, echo=FALSE}
 library(phyloseq)
 library(vegan)
 library(ellipse)
 library(tidyverse)
 library(gghighlight)
 library(gridExtra)
-library(DECIPHER)
-library(speedyseq)
 source("helper_functions.R")
-source("decipher_idclusters.R")
 ```
 
 Here are the color and shape schemes used. 
@@ -50,20 +47,26 @@ names(cmn_ps_pcoas) = unlist(lapply(list(c("crop", "summer"), c("crop", "winter"
 basic_theme <- theme(axis.title = element_blank(), title = element_blank(), legend.position = "none")
 minimal_theme <- theme(axis.ticks = element_blank(), axis.text = element_blank())
 
-grid.arrange(cmn_ps_pcoas$crop_summer[[1]]$pcoa_w_ell + basic_theme + theme(plot.margin = unit(c(5.5, 6.5, 5.5, 5.5), units = "points")), 
-             cmn_ps_pcoas$crop_winter[[1]]$pcoa_w_ell + basic_theme + theme(axis.text.x = element_blank(), axis.ticks.x = element_blank()), 
-             cmn_ps_pcoas$mouth_summer[[1]]$pcoa_w_ell + basic_theme + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank()), 
+grid.arrange(cmn_ps_pcoas$crop_summer[[1]]$pcoa_w_ell + basic_theme + 
+                 theme(axis.text.x = element_blank(), axis.ticks.x = element_blank()),
+             cmn_ps_pcoas$crop_winter[[1]]$pcoa_w_ell + basic_theme + minimal_theme, 
+             cmn_ps_pcoas$mouth_summer[[1]]$pcoa_w_ell + basic_theme, 
              cmn_ps_pcoas$mouth_winter[[1]]$pcoa_w_ell + basic_theme + minimal_theme, 
-             cmn_ps_pcoas$nectar_winter[[1]]$pcoa_w_ell + basic_theme + minimal_theme,
-             textGrob(paste0("Axis 1 (", round(cmn$values$Relative_eig[1] * 100, 1), "%)"), gp = gpar(col = "black", fontsize = 16)),
-             textGrob(paste0("Axis 2 (", round(cmn$values$Relative_eig[2] * 100, 1), "%)"), gp = gpar(col = "black", fontsize = 16), rot = 90), 
-             layout_matrix = rbind(c(NA, NA, NA, NA, NA), c(7, 2, 4, 5, NA), c(7, 1, 3, NA, NA), c(NA, NA, 6, NA, NA)), 
-             widths = c(0.03, 0.32, 0.30, 0.30, 0.05), heights = c(0.05, 0.45, 0.46, 0.04))
+             cmn_ps_pcoas$nectar_winter[[1]]$pcoa_w_ell + basic_theme,
+             textGrob(paste0("Axis 1 (", round(cmn$values$Relative_eig[1] * 100, 1), "%)"), 
+                      gp = gpar(col = "black", fontsize = 16)),
+             textGrob(paste0("Axis 2 (", round(cmn$values$Relative_eig[2] * 100, 1), "%)"), 
+                      gp = gpar(col = "black", fontsize = 16), rot = 90), 
+             layout_matrix = rbind(c(NA, NA, NA, NA, NA, NA), c(NA, 1, 1, 2, 2, NA), 
+                                   c(NA, NA, NA, NA, NA, NA), c(7, 3, 3, 4, 4, NA),
+                                   c(7, 3, 3, 4, 4, NA), c(NA, 3, 3, NA, NA, NA), 
+                                   c(NA, NA, 5, 5, 5, NA), c(NA, 6, 6, 6, 6, NA)), 
+             widths = c(0.03, 0.44, 0.04, 0.02, 0.42, 0.05), 
+             heights = c(0.05, 0.28, 0.02, 0.28, 0.023, 0.017, 0.29, 0.04))
 ```
 
 Beta diversity statistics. 
 ```{r betadiv_stats}
-set.seed(1279466746)
 adonis2(UniFrac(cmn$physeq, weighted = T) ~ origin + season + bee_species, data = data.frame(cmn$physeq@sam_data))
 adonis2(UniFrac(subset_samples(cmn$physeq, season == "summer"), weighted = T) ~ origin + site, data = data.frame(subset_samples(cmn$physeq, season == "summer")@sam_data))
 adonis2(UniFrac(subset_samples(cmn$physeq, season == "winter"), weighted = T) ~ origin + site, data = data.frame(subset_samples(cmn$physeq, season == "winter")@sam_data))

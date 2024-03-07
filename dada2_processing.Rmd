@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 
-```{r packages, echo=FALSE}
+```{r setup, echo=FALSE}
 library(dada2)
 library(tidyverse)
 library(Biostrings)
@@ -130,6 +130,7 @@ summary_tab
 
 Assign taxonomy for bacterial reads. 
 ```{r assign_taxa}
+set.seed(1279466746)
 taxa <- assignTaxonomy(seqtab.nochim, "silva_nr99_v138.1_wSpecies_train_set.fa",
                        multithread = T, tryRC = T)
 rownames(taxa) = paste("ASV", seq(1:dim(seqtab.nochim)[2]), sep = "_")

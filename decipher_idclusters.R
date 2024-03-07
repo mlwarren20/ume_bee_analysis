@@ -1,3 +1,7 @@
+###############################################
+#   The following functions belong to the DECIPHER package and are available at https://rdrr.io/bioc/DECIPHER/src/R/IdClusters.R
+###############################################
+
 # below function modified from stats package
 to.dendrogram <- function(object, states=NULL) {
 	
