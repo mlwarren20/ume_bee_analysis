@@ -3,9 +3,9 @@
 This repository includes all the scripts necessary to process and analyze the next-generation sequences and isolate sequences associated with the Japanese apricot nectar and honey bee mouth and crop samples. These scripts will reproduce the results in the corresponding manuscript titled "Bacteria in honeybee crops are decoupled from those in floral nectar and bee mouths", doi:... . In this study, we compared the bacteria found in the nectar, mouth, and crop samples collected summer 2018 and winter 2019 from apricot orchards in Japan. We found that the honey bee crop contains a bacterial community that is more consistent across season and location and distinct from environmental bacteria than previously thought.  
 
 ### To run these scripts you will need the following: 
-1. bash and python packages: cutadapt v , mafft v , trimAI v , SuperCRUNCH v , and iqtree v2.2.2.6
-2. All R packages can be installed by running `renv::restore()` using the renv package.
-3. The amplicon sequences available for download from NCBI (PRJNA1076572)
+1. All R packages can be installed by running `renv::restore()` using the renv package.
+2. Other packages: cutadapt v3.5, mafft v7.520, trimAI v1.4.rev15, SuperCRUNCH v1.3.2, IQ-TREE v2.2.2.9, and TreeShrink v1.3.9
+3. The amplicon sequences available for download from NCBI (PRJNA1076572).
 4. The Silva 138.1 prokaryotic SSU taxonomic training data can be downloaded from <https://zenodo.org/records/4587955>.
 5. The strain sequences are available to download from NCBI and their accession numbers are available in table S4. 
 
@@ -20,4 +20,4 @@ This repository includes all the scripts necessary to process and analyze the ne
 - The phyloseq object created using iqtree is loaded with "partition.nex.treefile". 
 - The "renv" folder and "renv.lock" file load the versions of the packages used in this analysis.
 
-Updated February 29, 2024
+Updated March 4, 2024
