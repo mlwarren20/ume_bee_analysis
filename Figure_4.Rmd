@@ -47,7 +47,7 @@ names(cmn_ps_pcoas) = unlist(lapply(list(c("crop", "summer"), c("crop", "winter"
 basic_theme <- theme(axis.title = element_blank(), title = element_blank(), legend.position = "none")
 minimal_theme <- theme(axis.ticks = element_blank(), axis.text = element_blank())
 
-grid.arrange(cmn_ps_pcoas$crop_summer[[1]]$pcoa_w_ell + basic_theme + 
+fig4_plot =grid.arrange(cmn_ps_pcoas$crop_summer[[1]]$pcoa_w_ell + basic_theme + 
                  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank()),
              cmn_ps_pcoas$crop_winter[[1]]$pcoa_w_ell + basic_theme + minimal_theme, 
              cmn_ps_pcoas$mouth_summer[[1]]$pcoa_w_ell + basic_theme, 
@@ -63,7 +63,30 @@ grid.arrange(cmn_ps_pcoas$crop_summer[[1]]$pcoa_w_ell + basic_theme +
                                    c(NA, NA, 5, 5, 5, NA), c(NA, 6, 6, 6, 6, NA)), 
              widths = c(0.03, 0.44, 0.04, 0.02, 0.42, 0.05), 
              heights = c(0.05, 0.28, 0.02, 0.28, 0.023, 0.017, 0.29, 0.04))
+samType_leg = Legend(at = c("mouth", "crop", "nectar"), title = "Sample type", title_gp = gpar(fontsize = 16, fontface = "bold"), legend_gp = gpar(fill = origin_colors[c(1,2,3)]), grid_height = unit(6, "mm"), grid_width = unit(6, "mm"), labels_gp = gpar(fontsize = 15))
+species_shape_legend = Legend(at = c("Apis cerana", "Apis mellifera"), title = "Bee species", title_gp = gpar(fontsize = 16, fontface = "bold"), labels_gp = gpar(fontface = "italic", fontsize = 15), graphics = list(function(x, y, w, h) grid.points(x, y, pch = 1, size = unit(4.8, "mm")), function(x, y, w, h) grid.points(x, y, pch = 2, size = unit(4.8, "mm"))))
 ```
+
+Jpeg figure 4 created using the following code: 
+```{r fig4_jpg}
+top.vp = viewport(layout = grid.layout(3, 3, widths = unit(c(26, 228, 26), "mm"), heights = unit(c(26, 304, 26), "mm")))
+plot.vp = viewport(layout.pos.col = 2, layout.pos.row = 2, name = "plot")
+splot = vpTree(top.vp, vpList(plot.vp))
+
+jpeg(filename = "Fig4.jpg", width = 280, height = 356, units = "mm", pointsize = 16, res = 400)
+pushViewport(splot)
+seekViewport("plot")
+grid.draw(fig4_plot)
+draw(samType_leg, x = unit(0.33, "npc"), y = unit(0.19, "npc"), just = c("right", "bottom"))
+draw(species_shape_legend, x = unit(0.345, "npc"), y = unit(0.12, "npc"), just = c("right", "bottom"))
+grid.lines(x = unit(c(0.18, 0.205), "npc"), y = unit(0.145, "npc"), gp = gpar(lty = "dashed", lwd = 2))
+grid.lines(x = unit(c(0.18, 0.205), "npc"), y = unit(0.13, "npc"), gp = gpar(lty = "solid", lwd = 2))
+grid.text(label = "Summer", x = unit(0.3, "npc"), y = unit(0.98, "npc"), gp = gpar(fontsize = 16))
+grid.text(label = "Winter", x = unit(0.75, "npc"), y = unit(0.98, "npc"), gp = gpar(fontsize = 16))
+popViewport()
+dev.off()
+```
+
 
 Beta diversity statistics. 
 ```{r betadiv_stats}

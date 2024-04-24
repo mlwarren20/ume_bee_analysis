@@ -19,6 +19,7 @@ library(grid)
 library(gridExtra)
 library(speedyseq)
 library(DECIPHER)
+library(ComplexHeatmap)
 source("helper_functions.R")
 source("decipher_idclusters.R")
 ```
@@ -46,9 +47,10 @@ Comparing the number of OTUs in the winter season for each sample type.
 cmnOTU@sam_data$origin <- factor(cmnOTU@sam_data$origin, levels = c("mouth", "crop", "nectar"))
 winTVL <- MicrobiotaProcess::get_vennlist(obj = subset_samples(cmnOTU, season == "winter"), "origin")
 winVD = venn.diagram(winTVL, height = 5, width = 5, filename = NULL, fill = origin_colors[c(1,2,3)], cat.col = c(NA, NA, NA), 
-                     alpha = 0.75, fontfamily = "serif", fontface = "plain", cex = 1.2, cat.cex = 1.3, cat.default.pos = "text", 
-                     col = "black", cat.dist = 0.1, margin = 0.1, lwd = 2, lty = "solid", euler.d = F, scaled = F, 
-                     inverted = T)
+                     alpha = 0.75, fontfamily = "serif", fontface = "plain", cex = 1.2, cat.cex = 1.3, 
+                     cat.default.pos = "text", col = "black", cat.dist = 0.1, margin = 0.1, lwd = 2, 
+                     lty = "solid", euler.d = F, scaled = F, inverted = T)
+winVD_leg = Legend(at = c("mouth", "crop", "nectar"), title = "Sample type", legend_gp = gpar(fill = origin_colors[c(1,2,3)]))
 grid.draw(winVD)
 ```
 
@@ -68,6 +70,20 @@ melliferaVD = venn.diagram(melliferaTVL, height = 5, width = 5, filename = NULL,
 grid.arrange(ceranaVD, melliferaVD, nrow = 1)
 ```
 
+Jpeg file was created with the following code: 
+```{r fig2_jpg}
+top.vp = viewport(layout = grid.layout(3, 3, widths = unit(c(26, 160, 26), "mm"), heights = unit(c(26, 160, 26), "mm")))
+plot.vp = viewport(layout.pos.col = 2, layout.pos.row = 2, name = "plot")
+splot = vpTree(top.vp, vpList(plot.vp))
+
+jpeg(filename = "Fig2.jpg", width = 238, height = 238, units = "mm", pointsize = 16, res = 400)
+pushViewport(splot)
+seekViewport("plot")
+grid.draw(winVD)
+draw(winVD_leg, x = unit(0.9, "npc"), y = unit(0.28, "npc"), just = c("right", "bottom"))
+popViewport()
+dev.off()
+```
 
 
 

@@ -54,7 +54,7 @@ names(orig_clams) = c("crop", "mouth")
 
 This code creates Figure 6. 
 ```{r fig6}
-grid.arrange(orig_clams$crop$clam_plot + theme(axis.title.x = element_blank()), 
+fig6_plot = grid.arrange(orig_clams$crop$clam_plot + theme(axis.title.x = element_blank()), 
              orig_clams$mouth$clam_plot + theme(axis.title.x = element_blank(), axis.title.y = element_blank()),
              textGrob(bquote("Log(summer" ~ASV[97]~ "abundance + 1)"), gp = gpar(fontsize = 12), just = "top"),
              orig_clams$crop$clam_barplot, 
@@ -63,4 +63,17 @@ grid.arrange(orig_clams$crop$clam_plot + theme(axis.title.x = element_blank()),
              widths = c(0.25, 0.225, 0.05, 0.225, 0.25), heights = c(0.45, 0.1, 0.1, 0.35))
 ```
 
+Jpeg figure 6 created using the following code: 
+```{r fig6_jpg}
+top.vp = viewport(layout = grid.layout(3, 3, widths = unit(c(26, 228, 26), "mm"), heights = unit(c(26, 171, 26), "mm")))
+plot.vp = viewport(layout.pos.col = 2, layout.pos.row = 2, name = "plot")
+splot = vpTree(top.vp, vpList(plot.vp))
+
+jpeg(filename = "Fig6.jpg", width = 280, height = 223, units = "mm", pointsize = 16, res = 400)
+pushViewport(splot)
+seekViewport("plot")
+grid.draw(fig6_plot)
+popViewport()
+dev.off()
+```
 

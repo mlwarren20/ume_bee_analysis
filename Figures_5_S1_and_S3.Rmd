@@ -116,12 +116,13 @@ cmn_dsq50 <- cmn_dsq_prevalence %>%
 
 Figure 5 constants for heatmap. **Only run to create *Figure 5* heatmap**
 ```{r fig5_constants}
-DATA <- cmn_dsq50
+DATA <- cmn_dsq_prevalence
 TAXA <- cmn_dsq50
 ROOT <- "ASV_31"
-heatmap_coloring <- c("black", viridis(21, option = "H", begin = 0.1))
+heatmap_coloring <- colorRamp2(leg_break, c("black", viridis(10, option = "H", begin = 0.1)))
 leg_break <- c(0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1)
 leg_labels <- c(0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100)
+heatmap_leg_params = list(at = leg_break, labels = leg_labels, title = "Prevalence %")
 ```
 
 Figure S3 constants for heatmap. **Only run to create *Figure S3* heatmap and get figure legend for *Figure S1* **
@@ -137,12 +138,14 @@ leg_labels <- c("absent", "present")
 Heatmap community matrix, sample clustering, and ultrametric, rooted phylogeny
 ```{r fig5_parts1, message=FALSE}
 # Community matrix 
-if ("group_id" %in% colnames(DATA)) {
-  COMMUNITY <- DATA %>% 
+if ("group_id" %in% colnames(TAXA)) {
+  COMMUNITY <- TAXA %>% 
+    ungroup() %>% 
     dplyr::select(group_id, starts_with("ASV")) %>% 
     column_to_rownames(var = "group_id")
 } else {
-  COMMUNITY <- DATA %>% 
+  COMMUNITY <- TAXA %>% 
+    ungroup() %>% 
     dplyr::select(starts_with("ASV"))
 }
 
@@ -156,17 +159,20 @@ PHYLOGENY <- chronos(ps_rooted_tree)
 # Sample clustering
 # rbiom::unifrac assumes rows are taxa and columns are samples
 samples_clustered <- rbiom::unifrac(biom = t(COMMUNITY), weighted = T, tree = ps_tree)
-SAMPLE_CLUSTERS <- hclust(samples_clustered, method = "complete")
+SAMPLE_CLUSTERS <- rev(hclust(samples_clustered, method = "complete"))
+
 ```
 Set up annotations for the heatmap. 
 ```{r hm_annotations}
 if ("group_id" %in% colnames(DATA)) {
   row_annotations <- DATA %>% 
-  dplyr::select(`Bee species`, Season, `Sample type`, group_id) %>% 
-  column_to_rownames(var = "group_id")
+    ungroup() %>% 
+    dplyr::select(`Bee species`, Season, `Sample type`, group_id) %>% 
+    column_to_rownames(var = "group_id")
 } else {
   row_annotations <- DATA %>% 
-  dplyr::select(`Bee species`, Season, `Sample type`)
+    ungroup() %>% 
+    dplyr::select(`Bee species`, Season, `Sample type`)
 }
 ```
 
@@ -184,42 +190,60 @@ phyla_cols <- setNames(as.vector(sample(c(viridis::magma(n=9, begin = 0.3),
                                 viridis::turbo(n=8, begin = 0.2)))), unique(genus_annotations$Phylum))
 ```
 
-
-Plot heatmap figure. For **Figure 5** uncomment line 189 and for **Figure S3** uncomment lines 192-193.
+Plot heatmap figure. For **Figure 5** uncomment line 196 and for **Figure S3** uncomment lines 199-200.
 ```{r heatmap}
 ## Figure 5
-# fun_args <- list(mat = COMMUNITY, cluster_cols = as.hclust.phylo(PHYLOGENY), cluster_rows = SAMPLE_CLUSTERS, annot_legend = F, annotation_row = row_annotations, annotation_col = NA, labels_row = NULL, labels_col = genus_annotations$Genus, fontsize_row = 12, fontsize_col = 9, angle_col = 45)
+fun_args <- list(mat = as.matrix(COMMUNITY), cluster_cols = as.hclust.phylo(PHYLOGENY), cluster_rows = SAMPLE_CLUSTERS, annot_legend = F, annotation_row = row_annotations, annotation_col = NA, labels_row = rownames(COMMUNITY), labels_col = genus_annotations$Genus, fontsize = 12, fontsize_row = 12, fontsize_col = 12, angle_col = 45)
 
 ## Figure S3
-fun_args <- list(mat = t(COMMUNITY), cluster_cols = SAMPLE_CLUSTERS, cluster_rows = as.hclust.phylo(PHYLOGENY), annot_legend = T, annotation_row = genus_annotations %>% dplyr::select(Phylum), annotation_col = row_annotations, labels_row = genus_annotations$Genus, labels_col = NULL, fontsize_row = 8, fontsize_col = 8, angle_col = 90)
-row_colors$Phylum <- phyla_cols
+# fun_args <- list(mat = t(COMMUNITY), cluster_cols = SAMPLE_CLUSTERS, cluster_rows = as.hclust.phylo(PHYLOGENY), annot_legend = T, annotation_row = genus_annotations %>% dplyr::select(Phylum), annotation_col = row_annotations, labels_row = genus_annotations$Genus, labels_col = NULL, fontsize_row = 8, fontsize_col = 8, angle_col = 90)
+# row_colors$Phylum <- phyla_cols
 
-cmn_HM = pheatmap(mat = fun_args$mat, color = heatmap_coloring,
-                  cluster_cols = fun_args$cluster_cols, 
-                  cluster_rows = fun_args$cluster_rows, 
-                  border_color = "transparent",
-                  legend = F, annotation_legend = fun_args$annot_legend,
-                  legend_breaks = leg_break, legend_labels = leg_labels, 
-                  fontsize_row = fun_args$fontsize_row, 
-                  fontsize_col = fun_args$fontsize_col,
-                  annotation_row = fun_args$annotation_row, 
-                  annotation_col = fun_args$annotation_col, 
-                  labels_row = fun_args$labels_row, labels_col = fun_args$labels_col, 
-                  annotation_colors = row_colors, annotation_names_col = T,
-                  annotation_names_row = T, angle_col = fun_args$angle_col)
+cmn_HM = draw(Heatmap(matrix = fun_args$mat, col = heatmap_coloring, 
+                      cluster_rows = fun_args$cluster_rows, 
+                      cluster_columns = fun_args$cluster_cols, 
+                      row_dend_width = unit(1.5, "cm"), 
+                      column_names_rot = fun_args$angle_col, 
+                      column_labels = fun_args$labels_col, 
+                      row_labels = fun_args$labels_row,
+                      left_annotation = rowAnnotation(df = fun_args$annotation_row, 
+                                                      col = row_colors, 
+                                                      annotation_name_rot = fun_args$angle_col,
+                                                      simple_anno_size = unit(7, "mm"),
+                                                      annotation_legend_param = list(
+                                                        `Bee species` = list(
+                                                          at = c("cerana", "mellifera"), 
+                                                          labels = c("Apis cerana", "Apis mellifera"), 
+                                                          labels_gp = gpar(fontface = "italic")))), 
+                      heatmap_legend_param = heatmap_leg_params, 
+                      width = unit(295, "mm"), height = unit(150, "mm")), 
+              heatmap_legend_side = "left")
+# cmn_HM = pheatmap(mat = fun_args$mat, color = heatmap_coloring,
+#                   cluster_cols = fun_args$cluster_cols, 
+#                   cluster_rows = rev(fun_args$cluster_rows), 
+#                   border_color = "transparent",
+#                   legend = F, annotation_legend = fun_args$annot_legend,
+#                   legend_breaks = leg_break, legend_labels = leg_labels, 
+#                   fontsize_row = fun_args$fontsize_row, 
+#                   fontsize_col = fun_args$fontsize_col,
+#                   annotation_row = fun_args$annotation_row, 
+#                   annotation_col = fun_args$annotation_col, 
+#                   labels_row = fun_args$labels_row, labels_col = fun_args$labels_col, 
+#                   annotation_colors = row_colors, annotation_names_col = T,
+#                   annotation_names_row = T, angle_col = fun_args$angle_col)
 cmn_HM
 ```
 
 *Extra aesthetics tinkering for manuscript figure 5 plot*
 ```{r fig5_tinkering}
-cmn_HM$gtable$grobs[[6]]$x[1:39] <- unit(1, "npc") + unit(rep(-9, 39), "bigpts")
-cmn_HM$gtable$grobs[[6]]$x[40:78] <- unit(1, "npc") + unit(rep(-28, 39), "bigpts")
-cmn_HM$gtable$grobs[[6]]$x[79:117] <- unit(1, "npc") + unit(rep(-47, 39), "bigpts")
-cmn_HM$gtable$grobs[[6]]$width <- unit(18, "bigpts")
-cmn_HM$gtable$grobs[[7]]$x <- unit(1, "npc") + unit(c(-10, -29, -48), "bigpts")
-cmn_HM$gtable$widths[2] <- unit(57, "bigpts")
-cmn_HM$gtable$widths[1] <- unit(44, "bigpts")
-cmn_HM$gtable <- gtable_add_cols(cmn_HM$gtable, widths = unit(8, "bigpts"), pos = 0)
+# cmn_HM$gtable$grobs[[6]]$x[1:39] <- unit(1, "npc") + unit(rep(-9, 39), "bigpts")
+# cmn_HM$gtable$grobs[[6]]$x[40:78] <- unit(1, "npc") + unit(rep(-28, 39), "bigpts")
+# cmn_HM$gtable$grobs[[6]]$x[79:117] <- unit(1, "npc") + unit(rep(-47, 39), "bigpts")
+# cmn_HM$gtable$grobs[[6]]$width <- unit(18, "bigpts")
+# cmn_HM$gtable$grobs[[7]]$x <- unit(1, "npc") + unit(c(-10, -29, -48), "bigpts")
+# cmn_HM$gtable$widths[2] <- unit(57, "bigpts")
+# cmn_HM$gtable$widths[1] <- unit(44, "bigpts")
+# cmn_HM$gtable <- gtable_add_cols(cmn_HM$gtable, widths = unit(8, "bigpts"), pos = 0)
 ```
 
 To create the S1 plots. 
@@ -273,4 +297,30 @@ grid.arrange(textGrob("A", gp = gpar(fontsize = 13)),
                                    c(NA, NA, 11, 11, 11, NA, 10, 10, 12, 12, 12)), 
              heights = c(0.026, 0.106, 0.066, 0.016, 0.116, 0.33, 0.34), 
              widths = c(0.02, 0.04, 0.02, 0.11, 0.19, 0.02, 0.1, 0.18, 0.02, 0.08, 0.19))
+```
+
+Jpeg of figure 5 was created with the following code: 
+```{r fig5_jpg}
+jpeg(filename = "Fig5.jpg", width = 500, height = 350, units = "mm", res = 400, pointsize = 16)
+par(mai = c(1, 1, 1, 1))
+draw(Heatmap(matrix = fun_args$mat, col = heatmap_coloring, 
+                      cluster_rows = fun_args$cluster_rows, 
+                      cluster_columns = fun_args$cluster_cols, 
+                      row_dend_width = unit(1.5, "cm"), 
+                      column_names_rot = fun_args$angle_col, 
+                      column_labels = fun_args$labels_col, 
+                      row_labels = fun_args$labels_row,
+                      left_annotation = rowAnnotation(df = fun_args$annotation_row, 
+                                                      col = row_colors, 
+                                                      annotation_name_rot = fun_args$angle_col,
+                                                      simple_anno_size = unit(7, "mm"),
+                                                      annotation_legend_param = list(
+                                                        `Bee species` = list(
+                                                          at = c("cerana", "mellifera"), 
+                                                          labels = c("Apis cerana", "Apis mellifera"), 
+                                                          labels_gp = gpar(fontface = "italic")))), 
+                      heatmap_legend_param = heatmap_leg_params, 
+                      width = unit(295, "mm"), height = unit(150, "mm")), 
+              heatmap_legend_side = "left")
+dev.off()
 ```

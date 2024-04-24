@@ -70,19 +70,22 @@ sites_map = get_stadiamap(sites_area, zoom = 13, maptype = "stamen_terrain_backg
   theme(legend.position = c(0.2,0.82), axis.title = element_blank(), legend.text = element_text(size = 14),
         axis.text = element_blank(), axis.ticks = element_blank(), 
         legend.background = element_rect(fill = "transparent"), 
-        legend.key = element_rect(fill = "transparent"), legend.title = element_blank()) +
+        legend.key = element_rect(fill = "transparent"), legend.title = element_blank(), 
+        plot.margin = unit(c(1, 1, 1, 1), "inches")) +
   guides(color = FALSE) 
 
 full_map = ggdraw(sites_map) + 
-  draw_plot(japan_map, x = 0.11, y = 0, width = 0.3, height = 0.5)
+  draw_plot(japan_map, x = 0.18, y = 0.1, width = 0.3, height = 0.5, scale = 0.65)
 
-north2(full_map, x = 0.63, y = 0.18, scale = 0.1, symbol = 1)
+north2(full_map, x = 0.582, y = 0.28, scale = 0.08, symbol = 1)
 ```
 
-
-
-
-
+Jpeg file was created with the following code: 
+```{r fig1_jpeg}
+jpeg(filename = "Fig1.jpg", width = 186, height = 140, units = "mm", pointsize = 16, res = 400)
+north2(full_map, x = 0.582, y = 0.28, scale = 0.08, symbol = 1)
+dev.off()
+```
 
 
 

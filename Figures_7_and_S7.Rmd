@@ -62,7 +62,7 @@ tree_fun <- function(tree, ...) {
 This code makes Figure 7. We removed the root for ease of visualization and visualized the SH-alrt/ultra-fast bootstrap support values at the nodes.
 ```{r fig7}
 fig7tree <- tree_fun(drop.tip(ak_tree, "Fhon13_OX335302.1"))
-fig7tree + geom_tiplab(aes(color = factor(hl), label = tag), align = F, linesize = 0.25, offset = 0.0003) +
+fig7_plot = fig7tree + geom_tiplab(aes(color = factor(hl), label = tag), align = F, linesize = 0.25, offset = 0.0003) +
     geom_text(data = subset(fig7tree$data, !isTip & shalrt != 0 & !node %in% c(44,46,47,48,49,60,65,66,77,78,79)), 
               aes(label = paste(shalrt, ufbs, sep = "/")), size = 2.5, nudge_x = -0.001, nudge_y = 0.4) + 
     geom_text(data = subset(fig7tree$data, !isTip & shalrt != 0 & node == 77), 
@@ -74,7 +74,7 @@ fig7tree + geom_tiplab(aes(color = factor(hl), label = tag), align = F, linesize
     xlim(0, 0.05) + 
     geom_treescale(x = 0, y = -3, width = 0.01, linesize = 0.8) +
     scale_color_manual(values = c("C_clade" = "green4", "M_clade" = "darkgoldenrod", "non_spec" = "grey36")) + 
-    theme(legend.position = "none")
+    theme(legend.position = "none", plot.margin = unit(c(0, 0, 0, 0), "inches"))
 ```
 
 This code make Figure S7 panel A. 
@@ -105,6 +105,23 @@ figS7.Btree +
                      values = c("cerana" = "green4", "mellifera" = "darkgoldenrod"), 
                      labels = c("Apis cerana", "Apis mellifera")) + 
   theme(legend.position = "none")
+```
+
+Jpeg figure 7 created using the following code: 
+```{r fig7_jpg}
+top.vp = viewport(layout = grid.layout(3, 3, widths = unit(c(26, 228), "mm"), heights = unit(c(26, 200, 26), "mm")))
+plot.vp = viewport(layout.pos.col = 2, layout.pos.row = 2, name = "plot")
+splot = vpTree(top.vp, vpList(plot.vp))
+
+species_legend = Legend(at = c("Apis cerana", "Apis mellifera"), title = "Bee species", title_position = c("topcenter"), title_gp = gpar(fontsize = 13, fontface = "bold"), labels_gp = gpar(fontface = "italic", fontsize = 12, col = c("green4", "darkgoldenrod")))
+
+jpeg(filename = "Fig7.jpg", width = 254, height = 252, units = "mm", pointsize = 16, res = 400)
+pushViewport(splot)
+seekViewport("plot")
+grid.draw(ggplotGrob(fig7_plot))
+draw(species_legend, x = unit(0.7, "npc"), y = unit(0.5, "npc"), just = c("right", "bottom"))
+popViewport()
+dev.off()
 ```
 
 
