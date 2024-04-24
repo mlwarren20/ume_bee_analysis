@@ -20,7 +20,7 @@ library(cowplot)
 
 This code creates the map in Figure 1. Load the data. 
 ```{r map_data}
-ume_coords <- read_csv("ume_coords.csv")
+ume_coords <- read_csv("Supplementary_data_2.csv")
 ```
 Set the color scheme. 
 ```{r aesthetics}

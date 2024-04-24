@@ -27,9 +27,9 @@ origin_colors = c("crop" = "#f4a259", "mouth" = "#bc4b51")
 
 Load in the data. 
 ```{r data_load}
-metadata <- read_csv("ume_hb_sample_metadata.csv")
+metadata <- read_csv("Supplementary_data_1.csv")
 
-qpcr_data <- read_csv("qpcr_analysis_input_data.csv") 
+qpcr_data <- read_csv("Supplementary_data_5.csv") 
 
 qd <- left_join(qpcr_data, metadata, by = join_by("samples" == "sample")) %>% 
   mutate(quantification = as.numeric(quantification), 

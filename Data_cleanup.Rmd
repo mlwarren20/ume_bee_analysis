@@ -23,7 +23,7 @@ rownames(asv_counts) <- gsub("-", "_", gsub(paste(c("__515f", "winter_", "bac__"
 
 Exclude ASVs found in the negative controls for each plate. First identify the ASVs with reads in the negative control samples and delete those ASVs from the samples. 
 ```{r nc_cleanup}
-sample_metadata <- read_csv("ume_hb_sample_metadata.csv")
+sample_metadata <- read_csv("Supplementary_data_1.csv")
 
 plate_ids = c("JB_S_B1", "JB_S_B2", "^JB_W_B1", "^JB_W_B2", "2019_UME_W_B1", "2019_UME_W_B2", "2019_JB_W_B1_M", "2019_JB_W_B2_M")
 clean_asv_counts <- asv_counts

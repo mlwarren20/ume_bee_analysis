@@ -218,32 +218,7 @@ cmn_HM = draw(Heatmap(matrix = fun_args$mat, col = heatmap_coloring,
                       heatmap_legend_param = heatmap_leg_params, 
                       width = unit(295, "mm"), height = unit(150, "mm")), 
               heatmap_legend_side = "left")
-# cmn_HM = pheatmap(mat = fun_args$mat, color = heatmap_coloring,
-#                   cluster_cols = fun_args$cluster_cols, 
-#                   cluster_rows = rev(fun_args$cluster_rows), 
-#                   border_color = "transparent",
-#                   legend = F, annotation_legend = fun_args$annot_legend,
-#                   legend_breaks = leg_break, legend_labels = leg_labels, 
-#                   fontsize_row = fun_args$fontsize_row, 
-#                   fontsize_col = fun_args$fontsize_col,
-#                   annotation_row = fun_args$annotation_row, 
-#                   annotation_col = fun_args$annotation_col, 
-#                   labels_row = fun_args$labels_row, labels_col = fun_args$labels_col, 
-#                   annotation_colors = row_colors, annotation_names_col = T,
-#                   annotation_names_row = T, angle_col = fun_args$angle_col)
 cmn_HM
-```
-
-*Extra aesthetics tinkering for manuscript figure 5 plot*
-```{r fig5_tinkering}
-# cmn_HM$gtable$grobs[[6]]$x[1:39] <- unit(1, "npc") + unit(rep(-9, 39), "bigpts")
-# cmn_HM$gtable$grobs[[6]]$x[40:78] <- unit(1, "npc") + unit(rep(-28, 39), "bigpts")
-# cmn_HM$gtable$grobs[[6]]$x[79:117] <- unit(1, "npc") + unit(rep(-47, 39), "bigpts")
-# cmn_HM$gtable$grobs[[6]]$width <- unit(18, "bigpts")
-# cmn_HM$gtable$grobs[[7]]$x <- unit(1, "npc") + unit(c(-10, -29, -48), "bigpts")
-# cmn_HM$gtable$widths[2] <- unit(57, "bigpts")
-# cmn_HM$gtable$widths[1] <- unit(44, "bigpts")
-# cmn_HM$gtable <- gtable_add_cols(cmn_HM$gtable, widths = unit(8, "bigpts"), pos = 0)
 ```
 
 To create the S1 plots. 
@@ -276,13 +251,14 @@ dsq_legend$grobs[[1]]$widths[3] = dsq_legend$grobs[[1]]$widths[3] - unit(0.1, "c
 
 grid.arrange(textGrob("A", gp = gpar(fontsize = 13)), 
              textGrob("B", gp = gpar(fontsize = 13), just = c(0.5, 0.5)), 
-             textGrob("C", gp = gpar(fontsize = 13)), textGrob("D", gp = gpar(fontsize = 13)), 
+             textGrob("C", gp = gpar(fontsize = 13), just = c(0.5, 0.49)), 
+             textGrob("D", gp = gpar(fontsize = 13), just = c(1, 0.5)), 
              textGrob("winter nectar vs. winter mouth", 
                       gp = gpar(fontsize = 11), just = c(0.5,0.3)), 
              textGrob("winter nectar vs. winter crop", 
                       gp = gpar(fontsize = 11), just = c(0.5, 0.35)), 
              textGrob("winter crop vs. winter mouth", gp = gpar(fontsize = 11)), 
-             textGrob("summer crop vs. summer mouth", gp = gpar(fontsize = 11), just = c(0.5, 0.3)), 
+             textGrob("summer crop vs. summer mouth", gp = gpar(fontsize = 11), just = c(0.55, 0.3)), 
              dsq_plots$no_crop_winter + theme(axis.title = element_blank()), 
              dsq_plots$no_mouth_winter + theme(axis.title.y = element_blank()), 
              dsq_plots$no_nectar_winter + theme(axis.title.y = element_blank()), 
@@ -291,12 +267,12 @@ grid.arrange(textGrob("A", gp = gpar(fontsize = 13)),
              layout_matrix = rbind(c(NA, NA, NA, 1, 7, NA, 2, 5, NA, 4, 8), 
                                    c(NA, NA, 11, 11, 11, 9, 9, 9, 12, 12, 12), 
                                    c(NA, NA, 11, 11, 11, 9, 9, 9, 12, 12, 12), 
-                                   c(NA, NA, 11, 11, 11, NA, 3, 6, 12, 12, 12), 
+                                   c(NA, 13, 11, 11, 11, NA, 3, 6, 12, 12, 12), 
                                    c(NA, NA, 11, 11, 11, NA, 10, 10, 12, 12, 12), 
-                                   c(NA, 13, 11, 11, 11, NA, 10, 10, 12, 12, 12), 
+                                   c(NA, NA, 11, 11, 11, NA, 10, 10, 12, 12, 12), 
                                    c(NA, NA, 11, 11, 11, NA, 10, 10, 12, 12, 12)), 
              heights = c(0.026, 0.106, 0.066, 0.016, 0.116, 0.33, 0.34), 
-             widths = c(0.02, 0.04, 0.02, 0.11, 0.19, 0.02, 0.1, 0.18, 0.02, 0.08, 0.19))
+             widths = c(0.02, 0.04, 0.02, 0.1, 0.19, 0.02, 0.1, 0.18, 0.02, 0.1, 0.18))
 ```
 
 Jpeg of figure 5 was created with the following code: 
@@ -322,5 +298,5 @@ draw(Heatmap(matrix = fun_args$mat, col = heatmap_coloring,
                       heatmap_legend_param = heatmap_leg_params, 
                       width = unit(295, "mm"), height = unit(150, "mm")), 
               heatmap_legend_side = "left")
-dev.off()
+
 ```

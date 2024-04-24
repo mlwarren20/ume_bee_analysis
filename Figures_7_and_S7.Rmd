@@ -28,7 +28,7 @@ site_colors = c("Oshine 1" = "#f9b93a", "Nishi-honjo" = "#c7ee34", "Ichiigawa" =
 
 Load the tree file and root the tree. 
 ```{r aktree}
-ak_tree <- ape::read.tree("partition.nex.treefile")
+ak_tree <- ape::read.tree("Supplementary_data_3.nex.treefile")
 ak_tree_rooted <- root.phylo(ak_tree, outgroup = "Fhon13_OX335302.1")
 ```
 
@@ -39,7 +39,7 @@ ak_tree <- drop.tip(ak_tree_rooted, c("S_11", "S_48", "S_27", "S_29", "W_32-1", 
 
 Load sample metadata. 
 ```{r ak_metadata}
-metadata <- read_csv("ak_samples.csv")
+metadata <- read_csv("Supplementary_data_4.csv")
 
 # Rename Fhon13 to its full name.
 metadata[which(grepl("Fhon13", metadata$sample)), "sample"] = "Fhon13_OX335302.1"
