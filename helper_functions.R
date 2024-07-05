@@ -177,14 +177,19 @@ perma_run = function(ps, parameter) {
 }
 
 adonis_pairs = function(ps, parameter) {
-  sams = unique(ps@sam_data[[parameter]])
+  sams = unique(as.character(ps@sam_data[[parameter]]))
   if (length(sams) <= 2) {
     return(NULL)
+  } else if (length(sams) > 3) {
+    sam_pairs = combn(sams, m = 2)
+    lsams = as.list(as.data.frame(sam_pairs))
+  } else {
+    lsams = sams
   }
-  res = lapply(sams, function(not_include) {
-    ps2 = prune_samples(ps@sam_data[[parameter]] != not_include, ps)
+  res = lapply(lsams, function(not_include) {
+    ps2 = prune_samples(!ps@sam_data[[parameter]] %in% not_include, ps)
     perma = perma_run(ps2, parameter)
-    included = sams[sams != not_include]
+    included = sams[!sams %in% not_include]
     tag = paste(included, collapse = "_")
     return(list("perma" = perma, "tag" = tag))
   })
