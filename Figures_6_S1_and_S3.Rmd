@@ -1,0 +1,302 @@
+---
+title: "Figures 6, S1, and S3"
+author: "MW"
+date: "2024-02-01"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r setup, echo=FALSE}
+library(phyloseq)
+library(rbiom)
+library(tidyverse)
+library(vegan)
+library(DESeq2)
+library(dada2)
+library(phangorn)
+library(ggtree)
+library(viridis)
+library(pheatmap)
+library(gtable)
+library(ggpubr)
+library(DECIPHER)
+library(Biostrings)
+library(gridExtra)
+library(grid)
+detach("package:microbiome", unload = T)
+source("helper_functions.R")
+```
+
+Figures 6, S1, and S3 are based on the results of the DESeq2 analysis. So we begin with this analysis. To do a pairwise analysis of each sample type in each season, we started with a list where the sample type (i.e. "crop", "mouth", or "nectar") will be excluded and the season will be included in the data subset.
+
+**IMPORTANT**: If you run into the error "Error:C stack usage is too close to the limit" you can solve it using the method suggested in <https://stackoverflow.com/questions/14719349/error-c-stack-usage-is-too-close-to-the-limit> and then restart your R session.
+```{r deseq2, echo=FALSE}
+orig_comps <- list(c("crop", "winter"), c("mouth", "winter"), c("nectar", "winter"), c("nectar", "summer"))
+
+orig_deseqs <- lapply(orig_comps, function(v) {
+  ps <- prune_samples(cmnOTU@sam_data$origin != v[1] & cmnOTU@sam_data$season == v[2], cmnOTU)
+  ps <- prune_taxa(taxa_sums(ps) != 0, ps)
+  results <- dif_abund_deseq(ps, variable = "origin", alpha = 0.05, physeq_name = paste0(v[1], " excluded in ", v[2]))
+  return(results)
+})
+
+names(orig_deseqs) <- unlist(lapply(orig_comps, function(x) paste("no", paste0(x, collapse = "_"), sep = "_")))
+```
+
+The Figure 6 heatmap is created using the taxa that are differentially abundant. We first created a list with all the taxa that were differentially abundant in each of the pairwise analyses, and then get rid of duplicate taxa. Then we pruned the phyloseq object to only include these differentially abundant taxa
+```{r unique_difTaxa}
+dsq_tax <- unique(c(rownames(orig_deseqs$no_crop_winter$df), rownames(orig_deseqs$no_mouth_winter$df), rownames(orig_deseqs$no_nectar_winter$df), rownames(orig_deseqs$no_nectar_summer$df)))
+cmnOTU_dsq <- prune_taxa(dsq_tax, cmnOTU)
+```
+
+Now we agglomerate the data to Genus and construct a phylogenetic tree for these taxa. This step takes a while so I have provided a saved data object ("cmn_dsq_fitGTR.rds") that can just be loaded in. If you would like to compute it then un-comment the code (lines 65-66) and comment the loading of the saved object (line 68).
+```{r dsq_phylogeny}
+cmn_dsq <- tax_glom(cmnOTU_dsq, taxrank = "Genus")
+cmn_dsq <- prune_samples(sample_sums(cmn_dsq) != 0, cmn_dsq)
+
+cmn_dsq_align <- AlignSeqs(DNAStringSet(getSequences(refseq(cmn_dsq))))
+cmn_dsq_phangalign <- phyDat(as(cmn_dsq_align, "matrix"), type = "DNA")
+cmn_dsq_dm <- dist.ml(cmn_dsq_phangalign)
+cmn_dsq_treeNJ <- NJ(cmn_dsq_dm)
+cmn_dsq_fit <- pml(cmn_dsq_treeNJ, data = cmn_dsq_phangalign)
+cmn_dsq_fitGTR <- update(cmn_dsq_fit, k = 4, inv = 0.2)
+# cmn_dsq_fitGTR2 <- optim.pml(cmn_dsq_fitGTR, model = "GTR", optInv = TRUE, optGamma = TRUE, 
+#                             rearrangement = "stochastic", control = pml.control(trace = 0))
+
+cmn_dsq_fitGTR2 <- readRDS("cmn_dsq_fitGTR.rds")
+
+ggtree(phy_tree(cmn_dsq_fitGTR2$tree), branch.length = "none") + geom_tiplab(size = 2)
+```
+
+The samples in Figure 6 are clustered into numbered groups by sample type, season, site and bee species. The counts table is converted to a presence-absence matrix, and the each taxa's sum across all samples of this matrix is divided by the number of samples in each group to calculate the taxa's prevalence.
+```{r cmn_groups}
+cmn_dsq_Groups = data.frame(cmn_dsq@sam_data[,c("origin", "season", "bee_species", "site")]) %>% 
+  dplyr::count(origin, season, bee_species, site) %>% 
+  group_by(origin) %>% 
+  mutate(tag = paste(origin, season, bee_species, site, sep = "_"), 
+         group_id = paste0(toupper(substr(origin, 1, 1)), row_number()))
+
+cmn_dsq_df <- cbind(cmn_dsq@sam_data[,c("origin", "season", "bee_species", "site")], as.matrix((cmn_dsq@otu_table) > 0) + 0) %>% 
+  mutate(`Sample type` = factor(origin, levels = c("crop", "mouth", "nectar")), 
+         Season = factor(season, levels = c("summer", "winter")), 
+         `Bee species` = factor(bee_species, levels = c("cerana", "mellifera")),
+         Site = factor(site, levels = c("Ichiigawa", "Kiyokawa 1", "Oshine 1", "Nishi-honjo", "Higashi-honjo","Hirono", "Kamihaya", "Kiyokawa 2", "Nagano", "Oshine 2", "Shimanose", "Yamauchi")), 
+         tag = paste(origin, season, bee_species, site, sep = "_"))
+
+cmn_dsqDF_grouped <- cmn_dsq_df %>% 
+  mutate(group_id = cmn_dsq_Groups$group_id[match(tag, cmn_dsq_Groups$tag)],
+         sam_num = cmn_dsq_Groups$n[match(tag, cmn_dsq_Groups$tag)]) %>% 
+  group_by(`Sample type`, Season, `Bee species`, Site, tag, sam_num, group_id) %>% 
+  summarise_at(vars(ASV_6:ASV_8745), ~ sum(.x, na.rm = T)) 
+
+cmn_dsq_prevalence <- cmn_dsqDF_grouped %>% 
+  mutate_at(vars(ASV_6:ASV_8745), ~round(./sam_num, 2))
+```
+
+For Figure 6, we only visualized differentially abundant taxa that wer present in at least 50% of the different groups. Since there were 15 crop and mouth groups, we kept taxa present in at least 7 or more of these groups, and for the 9 nectar groups we kept taxa present in at least 4 or more groups. 
+```{r 50perc_tax}
+dsq50_taxa <- cmn_dsqDF_grouped %>% 
+  group_by(group_id) %>% 
+  dplyr::select(`Sample type`, group_id, starts_with("ASV")) %>% 
+  group_by(`Sample type`) %>% 
+  mutate(across(starts_with("ASV"), ~ .x > 0 )) %>% 
+  summarise(across(starts_with("ASV"), ~ sum(.x, na.rm = T))) %>% 
+  mutate(across(starts_with("ASV"), ~ ifelse(`Sample type` != "nectar", ifelse(.x >= 7, TRUE, FALSE), ifelse(.x >= 4, TRUE, FALSE)))) 
+
+cmn_dsq50 <- cmn_dsq_prevalence %>% 
+  ungroup() %>% 
+  dplyr::select(`Sample type`, Season, `Bee species`, Site, group_id, names(which(colSums(dsq50_taxa[,-1]) > 0)))
+```
+
+
+##### The next two chunks dictate constants and aesthetics specific to each of the heatmap figures. The first has the information for the heatmap depicting differentially abundant taxa present in at least 50% of each of the sample types with samples clustered by groups (Chunk 6: cmn_groups). The second has information for the heatmap depicting presence-absence of every differentially abundant taxa in each individual sample.
+
+Figure 6 constants for heatmap. **Only run to create *Figure 5* heatmap**
+```{r fig6_constants}
+DATA <- cmn_dsq_prevalence
+TAXA <- cmn_dsq50
+ROOT <- "ASV_31"
+heatmap_coloring <- colorRamp2(leg_break, c("black", viridis(10, option = "H", begin = 0.1)))
+leg_break <- c(0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1)
+leg_labels <- c(0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100)
+heatmap_leg_params = list(at = leg_break, labels = leg_labels, title = "Prevalence %")
+```
+
+Figure S3 constants for heatmap. **Only run to create *Figure S3* heatmap and get figure legend for *Figure S1* **
+```{r figS3_constants}
+DATA <- cmn_dsq_df
+TAXA <- cmn_dsq_df
+ROOT <- "ASV_31"
+heatmap_coloring <- c("black", "#2DF09DFF")
+leg_break <- c(0,1)
+leg_labels <- c("absent", "present")
+```
+
+Heatmap community matrix, sample clustering, and ultrametric, rooted phylogeny
+```{r fig6_parts1, message=FALSE}
+# Community matrix 
+if ("group_id" %in% colnames(TAXA)) {
+  COMMUNITY <- TAXA %>% 
+    ungroup() %>% 
+    dplyr::select(group_id, starts_with("ASV")) %>% 
+    column_to_rownames(var = "group_id")
+} else {
+  COMMUNITY <- TAXA %>% 
+    ungroup() %>% 
+    dplyr::select(starts_with("ASV"))
+}
+
+# Phylogeny
+PS <- prune_taxa(colnames(COMMUNITY), cmn_dsq)
+ps_tree <- phy_tree(PS)
+# Root with "ASV_31"
+ps_rooted_tree <- root(ps_tree, ROOT, resolve.root = T)
+PHYLOGENY <- chronos(ps_rooted_tree)
+
+# Sample clustering
+# rbiom::unifrac assumes rows are taxa and columns are samples
+samples_clustered <- rbiom::unifrac(biom = t(COMMUNITY), weighted = T, tree = ps_tree)
+SAMPLE_CLUSTERS <- rev(hclust(samples_clustered, method = "complete"))
+
+```
+Set up annotations for the heatmap. 
+```{r hm_annotations}
+if ("group_id" %in% colnames(DATA)) {
+  row_annotations <- DATA %>% 
+    ungroup() %>% 
+    dplyr::select(`Bee species`, Season, `Sample type`, group_id) %>% 
+    column_to_rownames(var = "group_id")
+} else {
+  row_annotations <- DATA %>% 
+    ungroup() %>% 
+    dplyr::select(`Bee species`, Season, `Sample type`)
+}
+```
+
+Set up colors and labels for annotations. 
+```{r annotation_colors}
+row_colors <- list(`Bee species` = c("cerana" = "#8cb369", "mellifera" = "#f4e285"),
+                Season = c("summer" = "#c9cebd", "winter" = "#847e89"),
+                `Sample type` = c("mouth" = "#bc4b51", "crop" = "#f4a259", "nectar" = "#648FFF"))
+
+## One Genus, "Burkholderia-Caballeronia-Paraburkholderia", needs to be shortened for the visualization.
+genus_annotations <- data.frame(PS@tax_table[as.hclust.phylo(PHYLOGENY)$labels, ]) %>% 
+  mutate(Genus =  ifelse(Genus == "Burkholderia-Caballeronia-Paraburkholderia", "Burkholderia*", Genus))
+phyla_cols <- setNames(as.vector(sample(c(viridis::magma(n=9, begin = 0.3),
+                                viridis::viridis(n=5, begin = 0.2),
+                                viridis::turbo(n=8, begin = 0.2)))), unique(genus_annotations$Phylum))
+```
+
+Plot heatmap figure. For **Figure 5** uncomment line 196 and for **Figure S3** uncomment lines 199-200.
+```{r heatmap}
+## Figure 6
+fun_args <- list(mat = as.matrix(COMMUNITY), cluster_cols = as.hclust.phylo(PHYLOGENY), cluster_rows = SAMPLE_CLUSTERS, annot_legend = F, annotation_row = row_annotations, annotation_col = NA, labels_row = rownames(COMMUNITY), labels_col = genus_annotations$Genus, fontsize = 12, fontsize_row = 12, fontsize_col = 12, angle_col = 45)
+
+## Figure S3
+# fun_args <- list(mat = t(COMMUNITY), cluster_cols = SAMPLE_CLUSTERS, cluster_rows = as.hclust.phylo(PHYLOGENY), annot_legend = T, annotation_row = genus_annotations %>% dplyr::select(Phylum), annotation_col = row_annotations, labels_row = genus_annotations$Genus, labels_col = NULL, fontsize_row = 8, fontsize_col = 8, angle_col = 90)
+# row_colors$Phylum <- phyla_cols
+
+cmn_HM = draw(Heatmap(matrix = fun_args$mat, col = heatmap_coloring, 
+                      cluster_rows = fun_args$cluster_rows, 
+                      cluster_columns = fun_args$cluster_cols, 
+                      row_dend_width = unit(1.5, "cm"), 
+                      column_names_rot = fun_args$angle_col, 
+                      column_labels = fun_args$labels_col, 
+                      row_labels = fun_args$labels_row,
+                      left_annotation = rowAnnotation(df = fun_args$annotation_row, 
+                                                      col = row_colors, 
+                                                      annotation_name_rot = fun_args$angle_col,
+                                                      simple_anno_size = unit(7, "mm"),
+                                                      annotation_legend_param = list(
+                                                        `Bee species` = list(
+                                                          at = c("cerana", "mellifera"), 
+                                                          labels = c("Apis cerana", "Apis mellifera"), 
+                                                          labels_gp = gpar(fontface = "italic")))), 
+                      heatmap_legend_param = heatmap_leg_params, 
+                      width = unit(295, "mm"), height = unit(150, "mm")), 
+              heatmap_legend_side = "left")
+cmn_HM
+```
+
+To create the S1 plots. 
+```{r S1}
+dsq_plots <- lapply(orig_deseqs, function(x) {
+  return(x$plot + 
+           scale_color_manual(values = rep("black", 20)) + 
+           scale_fill_manual(values = alpha(phyla_cols, 0.75)) + 
+           theme(legend.position = "none", plot.title = element_blank(), 
+                 axis.text.y = element_text(size = 5), plot.margin = unit(c(0, 5.5, 5, 5.5), "points"), 
+                 axis.text.x = element_text(angle = 0, hjust = 0.5, size = 5)))
+})
+
+# Extracts legend with all phyla
+dsq_combined <- do.call(rbind, lapply(orig_deseqs, function(x) x$df))
+all_phyla_plot <- ggplot(dsq_combined, aes(x = log2FoldChange, y = Genus, fill = Phylum)) + 
+  geom_point(size = 3, shape = 21, color = "black") + 
+  scale_fill_manual(values = phyla_cols) + theme(legend.background = element_blank()) 
+
+dsq_legend = get_legend(all_phyla_plot + 
+                          guides(shape = guide_legend(override.aes = list(size = 2)), 
+                                 color = guide_legend(override.aes = list(size = 2)), 
+                                 fill = guide_legend(override.aes = list(size = 2), ncol = 1)) + 
+                          theme(legend.text = element_text(size = 6), 
+                                legend.title.align = 0.5, legend.key = element_rect(fill = "transparent"), 
+                                legend.spacing.y = unit(0.1, "points")))
+
+dsq_legend$grobs[[1]]$heights[4:25] = dsq_legend$grobs[[1]]$heights[4:25] - unit(0.3, "cm")
+dsq_legend$grobs[[1]]$widths[3] = dsq_legend$grobs[[1]]$widths[3] - unit(0.1, "cm")
+
+grid.arrange(textGrob("A", gp = gpar(fontsize = 13)), 
+             textGrob("B", gp = gpar(fontsize = 13), just = c(0.5, 0.5)), 
+             textGrob("C", gp = gpar(fontsize = 13), just = c(0.5, 0.49)), 
+             textGrob("D", gp = gpar(fontsize = 13), just = c(1, 0.5)), 
+             textGrob("winter nectar vs. winter mouth", 
+                      gp = gpar(fontsize = 11), just = c(0.5,0.3)), 
+             textGrob("winter nectar vs. winter crop", 
+                      gp = gpar(fontsize = 11), just = c(0.5, 0.35)), 
+             textGrob("winter crop vs. winter mouth", gp = gpar(fontsize = 11)), 
+             textGrob("summer crop vs. summer mouth", gp = gpar(fontsize = 11), just = c(0.55, 0.3)), 
+             dsq_plots$no_crop_winter + theme(axis.title = element_blank()), 
+             dsq_plots$no_mouth_winter + theme(axis.title.y = element_blank()), 
+             dsq_plots$no_nectar_winter + theme(axis.title.y = element_blank()), 
+             dsq_plots$no_nectar_summer + theme(axis.title.y = element_blank()),
+             dsq_legend,
+             layout_matrix = rbind(c(NA, NA, NA, 1, 7, NA, 2, 5, NA, 4, 8), 
+                                   c(NA, NA, 11, 11, 11, 9, 9, 9, 12, 12, 12), 
+                                   c(NA, NA, 11, 11, 11, 9, 9, 9, 12, 12, 12), 
+                                   c(NA, 13, 11, 11, 11, NA, 3, 6, 12, 12, 12), 
+                                   c(NA, NA, 11, 11, 11, NA, 10, 10, 12, 12, 12), 
+                                   c(NA, NA, 11, 11, 11, NA, 10, 10, 12, 12, 12), 
+                                   c(NA, NA, 11, 11, 11, NA, 10, 10, 12, 12, 12)), 
+             heights = c(0.026, 0.106, 0.066, 0.016, 0.116, 0.33, 0.34), 
+             widths = c(0.02, 0.04, 0.02, 0.1, 0.19, 0.02, 0.1, 0.18, 0.02, 0.1, 0.18))
+```
+
+Jpeg of figure 6 was created with the following code: 
+```{r fig6_jpg}
+jpeg(filename = "Fig6.jpg", width = 500, height = 350, units = "mm", res = 400, pointsize = 16)
+par(mai = c(1, 1, 1, 1))
+draw(Heatmap(matrix = fun_args$mat, col = heatmap_coloring, 
+                      cluster_rows = fun_args$cluster_rows, 
+                      cluster_columns = fun_args$cluster_cols, 
+                      row_dend_width = unit(1.5, "cm"), 
+                      column_names_rot = fun_args$angle_col, 
+                      column_labels = fun_args$labels_col, 
+                      row_labels = fun_args$labels_row,
+                      left_annotation = rowAnnotation(df = fun_args$annotation_row, 
+                                                      col = row_colors, 
+                                                      annotation_name_rot = fun_args$angle_col,
+                                                      simple_anno_size = unit(7, "mm"),
+                                                      annotation_legend_param = list(
+                                                        `Bee species` = list(
+                                                          at = c("cerana", "mellifera"), 
+                                                          labels = c("Apis cerana", "Apis mellifera"), 
+                                                          labels_gp = gpar(fontface = "italic")))), 
+                      heatmap_legend_param = heatmap_leg_params, 
+                      width = unit(295, "mm"), height = unit(150, "mm")), 
+              heatmap_legend_side = "left")
+
+```

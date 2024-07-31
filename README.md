@@ -12,7 +12,7 @@ This repository includes all the scripts necessary to process and analyze the ne
 ### To reproduce the processing and analysis: 
 1. The raw amplicon sequences are processed first with the bash script "ume_cutadapt.sh" and then cleaned up with the scripts "dada2_processing.Rmd" followed by "Data_cleanup.Rmd". 
 2. The phylogeny is reproduced using the script "Ak_phylogeny.sh".
-3. The analyses and figures are reproduced in their corresponding scripts: "Figure_1.Rmd", "Figure_2_and_S2.Rmd", "Figures_3_and_S4.Rmd", "Figure_4.Rmd", "Figures_5_S1_and_S3.Rmd", "Figure_6.Rmd", "Figures_7_and_S7.Rmd", "Figures_S5_and_S6.Rmd".
+3. The analyses and figures are reproduced in their corresponding scripts: "Figure_1.Rmd", "Figure_2_and_S2.Rmd", "Figures_3_and_S5.Rmd", "Figure_4.Rmd", "Figure_5.Rmd", "Figures_6_S1_and_S3.Rmd", "Figure_7.Rmd", "Figures_8_and_S6.Rmd", "Figure_S4.Rmd".
 
 ### The extras:
 - The script, "helper_functions.R", contains custom functions that were used in the analysis and visualization of the data. 
@@ -20,4 +20,4 @@ This repository includes all the scripts necessary to process and analyze the ne
 - The phyloseq object created using iqtree is loaded with "partition.nex.treefile". 
 - The "renv" folder and "renv.lock" file load the versions of the packages used in this analysis.
 
-Updated March 4, 2024
+Updated July 30, 2024

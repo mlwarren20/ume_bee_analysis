@@ -40,7 +40,7 @@ for (id in plate_ids) {
 ume_hb_samples = sample_metadata %>% filter(origin != "NC")
 ```
 
-Make sure only organisms in the bacterial kingdom are present, and exclude any chloroplast, or mitochondria from analysis.308 ASVs as chloroplast, 464 as mitochondria, and 96 ASVs are eukarya or archaea. We also determined that the genus Cellulosimicrobium is a contaminant so we will exclude the 133 taxa classified as Cellulosimicrobium. We will exclude a total of 1001 taxa. 
+Make sure only organisms in the bacterial kingdom are present, and exclude any chloroplast, or mitochondria from analysis.310 ASVs as chloroplast, 465 as mitochondria, and 96 ASVs are eukarya or archaea. We also determined that the genus Cellulosimicrobium is a contaminant so we will exclude the 132 taxa classified as Cellulosimicrobium. We will exclude a total of 1003 taxa. 
 ```{r unwanted_taxa}
 asv_taxa <- taxa[-which(taxa == "Chloroplast" | taxa == "Cellulosimicrobium" | taxa == "Mitochondria", arr.ind = TRUE)[,1],]
 asv_taxa <- asv_taxa[which(asv_taxa[,"Kingdom"] == "Bacteria"),]

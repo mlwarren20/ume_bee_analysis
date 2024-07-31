@@ -1,0 +1,215 @@
+---
+title: "Figure_S5"
+author: "MW"
+date: "2024-07-30"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r packages_and_setup, echo=FALSE}
+options(dplyr.summarise.inform = FALSE)
+library(phyloseq)
+library(tidyverse)
+library(vegan)
+library(lme4)
+library(microbiome)
+library(ellipse)
+library(gghighlight)
+library(gridExtra)
+source("helper_functions.R")
+```
+
+This script creates Supplementary Figure 4. To create this figure, we first excluded all ASVs identified as *Gilliamella*, *Snodgrassella*, or *Lactobacillus*. 
+```{r exclude_common_hindgut_bacteria}
+common_hindgut_bac = c("Gilliamella", "Snodgrassella", "Lactobacillus")
+cmnOTU_noHindgut = subset_taxa(cmnOTU, !Genus %in% common_hindgut_bac)
+unique(cmnOTU_noHindgut@tax_table[,"Genus"])
+
+# Double check that these genera are no longer in the new dataset
+grep(paste(common_hindgut_bac, collapse = "|"), unique(cmnOTU_noHindgut@tax_table[,"Genus"]))
+```
+To create Supplementary Figure 4A, follow the script for Figure 3 (copied below).
+```{r alpha_div_noHindgut}
+alpha_measures = c("Shannon", "Observed")
+cmn_alpha_noHindgut <- data.frame(cmnOTU_noHindgut@sam_data, estimate_richness(cmnOTU_noHindgut, measures = alpha_measures)) %>% 
+  mutate(site2 = ifelse(site == "Nishi-honjo", ifelse(season == "winter", "Nishi-Honjo_W", "Nishi-Honjo_S"), site), 
+         site_alpha = factor(site2, levels = c("Ichiigawa", "Kiyokawa 1", "Oshine 1", "Nishi-Honjo_S","Nishi-Honjo_W", "Higashi-honjo", "Hirono", "Kamihaya", "Kiyokawa 2", "Nagano", "Oshine 2", "Shimanose", "Yamauchi")), 
+         origin = factor(origin, levels = c("crop", "mouth", "nectar")))
+```
+
+Alpha diversity and evenness statistics. 
+```{r stats_noHindgut}
+cmn_alpha_noHindgut = merge(cmn_alpha_noHindgut, microbiome::evenness(cmnOTU_noHindgut, index = "pielou"), by = 0) %>% 
+  mutate(pielou = ifelse(is.nan(pielou), 0, pielou)) %>% 
+  column_to_rownames(var = "Row.names")
+
+
+# Filter for winter season and compare crop to mouth, mouth to nectar, and nectar to crop. Filter for summer season and compare crop to mouth
+alpha_stats <- lapply(c("summer", "winter"), function(s) {
+  df <- cmn_alpha_noHindgut %>% filter(season == s)
+  combos <- combn(unique(df$origin), 2)
+  stats <- lapply(seq_len(ncol(combos)),function(c) {
+    Shannon_stat <- t.test(df[df$origin == combos[,c][2], "Shannon"],
+                           df[df$origin == combos[,c][1], "Shannon"], alternative = "two.sided")
+    even_stat <- t.test(df[df$origin == combos[,c][2], "pielou"],
+                        df[df$origin == combos[,c][1], "pielou"], alternative = "two.sided")
+    return(list("shannon" = Shannon_stat, "evenness" = even_stat))
+  })
+  names(stats) <- paste(combos[2,], combos[1,], sep = "_")
+  df <- df %>% group_by(origin) %>% summarize(shannon_mean = mean(Shannon), evenness_mean = mean(pielou))
+  return(list("stats" = stats, "means" = df))
+})
+names(alpha_stats) <- c("summer", "winter")
+alpha_stats
+```
+
+
+Here are the color and shape schemes used. 
+```{r aesthetics}
+origin_colors = c("crop" = "#f4a259", "mouth" = "#bc4b51", "nectar" = "#648FFF")
+origin_shapes = c("crop" = 25, "mouth" = 23, "nectar" = 22)
+bee_shapes = c("cerana" = 16, "mellifera" = 17)
+```
+
+For the bootstrapping function we are interested in the random effect of site. 
+```{r bootfun_noHindgut}
+bootfun <- function(x) c(as.numeric(ranef(x)[["site_alpha"]][,1]), fixef(x)[["(Intercept)"]])
+```
+
+We also want to compare the samples within season. 
+```{r sample_season_combos_noHindgut}
+sample_type = c("crop", "mouth", "nectar")
+season = c("winter", "summer")
+ss_comb = crossing(sample_type, season) %>% 
+  rowwise() %>% 
+  mutate(comm = list(c(sample_type, season)))
+ss_comb <- append(ss_comb$comm[c(1:4,6)], sample_type, after = 0)
+```
+
+There was no nectar to collect from the Japanese apricot flowers in the summer, so to make the plot create empty spaces in the summer portion of the nectar column we an empty summary data frame for nectar. 
+```{r summer_nectar}
+pseudo_nec = data.frame(site = c("Ichiigawa", "Kiyokawa 1", "Oshine 1", "Nishi-Honjo_S"), season = rep("summer", 4), 
+           mean = rep(NA, 4), med = rep(NA, 4), lo = rep(NA, 4), hi = rep(NA, 4))
+pseudo_summer_nectar = data.frame(origin = rep("nectar", 4), sample_name = rep(NA, 4), date = rep(NA, 4), 
+                                  season = rep("summer", 4), year = rep(NA, 4), bee_genera = rep(NA, 4), 
+                                  bee_species = rep(NA, 4), pollen_basket = rep(NA, 4), 
+                                  location = c("Ichiigawa", "Kiyokawa 1", "Oshine 1", "Nishi-Honjo_S"), 
+                                  Lk_like_CFU_crop = rep(NA, 4), Pa_like_CFU_crop = rep(NA, 4), elevation = rep(NA, 4), 
+                                  longitude = rep(NA, 4), latitude = rep(NA, 4), 
+                                  site = c("Ichiigawa", "Kiyokawa 1", "Oshine 1", "Nishi-Honjo_S"), 
+                                  Observed = rep(NA, 4), Shannon = rep(NA, 4), 
+                                  site2 = c("Ichiigawa", "Kiyokawa 1", "Oshine 1", "Nishi-Honjo_S"), 
+                                  site_alpha = c("Ichiigawa", "Kiyokawa 1", "Oshine 1", "Nishi-Honjo_S"), 
+                                  pielou = rep(NA, 4))
+```
+
+Next we bootstrap the alpha diversity model with site as a random effect, and create plots of both the alpha diversity and random effect coefficient for each alpha diversity measure. 
+```{r alpha_bootstrap_noHindgut}
+set.seed(1279466746)
+alpha_sim_noHindgut = lapply(ss_comb, function(tissue) {
+    alpha_df <- alpha_wrangle(cmn_alpha_noHindgut, tissue)
+    results = lapply(alpha_measures, function(m) {
+        alpha_res <- boot_res(alpha_measure = m, bootfun = bootfun, df = alpha_df)
+        ref_df <- random_effect_df(alpha_res$results)
+        rich_df <- alpha_results_df(alpha_res$results)
+        
+        if (unique(alpha_df$origin) == "nectar") {
+          ref_df <- rbind(ref_df, pseudo_nec)
+          rich_df <- rbind(rich_df, pseudo_nec)
+          alpha_df <- rbind(alpha_df, pseudo_summer_nectar) 
+        }
+        
+        ref_plot <- random_effect_plot(ref_df, tissue)
+        alpha_plot <- alpha_results_plot(rich_df, alpha_df, tissue, m)
+        
+        return(list("lm" = alpha_res$alpha_mod, "sim" = alpha_res$results, "ranef_plot" = ref_plot, "alpha_plot" = alpha_plot))
+  })
+  names(results) = alpha_measures
+  return(results)
+})
+names(alpha_sim_noHindgut) = c("crop", "mouth", "nectar", "summer_crop", "winter_crop", "summer_mouth", 
+                     "winter_mouth", "winter_nectar")
+```
+
+The code below creates Figure S4A. 
+```{r fig4A}
+# Save 8 x 4 inches
+fig4A_plot = grid.arrange(alpha_sim_noHindgut$crop$Shannon$alpha_plot + ylim(-0.2, 4) + theme_classic() + 
+                 theme(axis.title = element_blank(), axis.text.x = element_blank(), 
+                       axis.ticks.x = element_blank(), legend.position = "none"), 
+             alpha_sim_noHindgut$mouth$Shannon$alpha_plot + ylim(-0.2, 4) + theme_classic() + 
+                 theme(axis.title = element_blank(), axis.ticks.x = element_blank(), 
+                       axis.text.x = element_blank(), legend.position = "none"), 
+             alpha_sim_noHindgut$nectar$Shannon$alpha_plot + ylim(-0.2, 4) + theme_classic() + 
+                 theme(axis.title = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1, size = 12), 
+                       legend.position = "none"), 
+             textGrob("Shannon", rot = 90, gp = gpar(col = "black", fontsize = 16)),
+             layout_matrix = rbind(c(NA, 1), c(4, 2), c(NA, 3)), 
+             heights = c(0.3, 0.3, 0.4), 
+             widths = c(0.04, 0.96))
+samType_leg = Legend(at = c("mouth", "crop", "nectar"), title = "Sample type", title_gp = gpar(fontsize = 11, fontface = "bold"), legend_gp = gpar(fill = origin_colors[c(1,2,3)]))
+species_shape_legend = Legend(at = c("Apis cerana", "Apis mellifera"), title = "Bee species", title_gp = gpar(fontsize = 11, fontface = "bold"), labels_gp = gpar(fontface = "italic"), graphics = list(function(x, y, w, h) grid.points(x, y, pch = 1, size = unit(3.5, "mm")), function(x, y, w, h) grid.points(x, y, pch = 2, size = unit(3.5, "mm"))))
+```
+
+To create Figure S4B, follow the script for Figure_4 (copied below). First, change counts to relative abundance for community composition analysis.
+```{r naive_proportions_noHindgut}
+cmn_prop_noHindgut <- transform_sample_counts(cmnOTU_noHindgut, function(x) {x/sum(x)})
+```
+
+Calculate PCoA values and add to sample data for easy ggplot figure. 
+```{r pcoa_values_noHindgut}
+cmn_noHindgut <- subset_pcoa(cmn_prop_noHindgut, d = "wunifrac")
+```
+
+Create PCoA plots. 
+```{r pcoa_plots_noHindgut}
+cmn_ps_pcoas_noHindgut = lapply(list(c("crop", "summer"), c("crop", "winter"), c("mouth", "summer"), c("mouth", "winter"), c("nectar", "winter")), 
+                     function(x) {
+                       return(plot_PCoA_w_highlight(cmn_noHindgut$physeq, paste(x, collapse = "_"), cmn_noHindgut$values, colorcode = "origin", shapecode = "bee_species", linecode = "bee_species", color_scheme = origin_colors, line_scheme = c("cerana" = "dashed", "mellifera" = "solid"), shape_scheme = bee_shapes, catg1 = "origin", grp1 = x[[1]], catg2 = "season", grp2 = x[[2]], op = "and"))
+                     })
+
+names(cmn_ps_pcoas_noHindgut) = unlist(lapply(list(c("crop", "summer"), c("crop", "winter"), c("mouth", "summer"), c("mouth", "winter"), c("nectar", "winter")), paste, collapse = "_"))
+
+basic_theme <- theme(axis.title = element_blank(), title = element_blank(), legend.position = "none")
+minimal_theme <- theme(axis.ticks = element_blank(), axis.text = element_blank())
+
+fig4B_plot =grid.arrange(cmn_ps_pcoas_noHindgut$crop_summer[[1]]$pcoa_w_ell + basic_theme + 
+                 theme(axis.text.x = element_blank(), axis.ticks.x = element_blank()),
+             cmn_ps_pcoas_noHindgut$crop_winter[[1]]$pcoa_w_ell + basic_theme + minimal_theme, 
+             cmn_ps_pcoas_noHindgut$mouth_summer[[1]]$pcoa_w_ell + basic_theme, 
+             cmn_ps_pcoas_noHindgut$mouth_winter[[1]]$pcoa_w_ell + basic_theme + minimal_theme, 
+             cmn_ps_pcoas_noHindgut$nectar_winter[[1]]$pcoa_w_ell + basic_theme,
+             textGrob(paste0("Axis 1 (", round(cmn_noHindgut$values$Relative_eig[1] * 100, 1), "%)"), 
+                      gp = gpar(col = "black", fontsize = 16)),
+             textGrob(paste0("Axis 2 (", round(cmn_noHindgut$values$Relative_eig[2] * 100, 1), "%)"), 
+                      gp = gpar(col = "black", fontsize = 16), rot = 90), 
+             layout_matrix = rbind(c(NA, NA, NA, NA, NA, NA), c(NA, 1, 1, 2, 2, NA), 
+                                   c(NA, NA, NA, NA, NA, NA), c(7, 3, 3, 4, 4, NA),
+                                   c(7, 3, 3, 4, 4, NA), c(NA, 3, 3, NA, NA, NA), 
+                                   c(NA, NA, 5, 5, 5, NA), c(NA, 6, 6, 6, 6, NA)), 
+             widths = c(0.03, 0.44, 0.04, 0.02, 0.42, 0.05), 
+             heights = c(0.05, 0.28, 0.02, 0.28, 0.023, 0.017, 0.29, 0.04))
+samType_leg = Legend(at = c("mouth", "crop", "nectar"), title = "Sample type", title_gp = gpar(fontsize = 16, fontface = "bold"), legend_gp = gpar(fill = origin_colors[c(1,2,3)]), grid_height = unit(6, "mm"), grid_width = unit(6, "mm"), labels_gp = gpar(fontsize = 15))
+species_shape_legend = Legend(at = c("Apis cerana", "Apis mellifera"), title = "Bee species", title_gp = gpar(fontsize = 16, fontface = "bold"), labels_gp = gpar(fontface = "italic", fontsize = 15), graphics = list(function(x, y, w, h) grid.points(x, y, pch = 1, size = unit(4.8, "mm")), function(x, y, w, h) grid.points(x, y, pch = 2, size = unit(4.8, "mm"))))
+```
+
+Beta diversity statistics for Supplementary Figure 4B. 
+```{r betadiv_stats}
+adonis2(UniFrac(cmn_noHindgut$physeq, weighted = T) ~ origin + season + bee_species, data = data.frame(cmn_noHindgut$physeq@sam_data))
+adonis2(UniFrac(subset_samples(cmn_noHindgut$physeq, season == "summer"), weighted = T) ~ origin + site, data = data.frame(subset_samples(cmn_noHindgut$physeq, season == "summer")@sam_data))
+adonis2(UniFrac(subset_samples(cmn_noHindgut$physeq, season == "winter"), weighted = T) ~ origin + site, data = data.frame(subset_samples(cmn_noHindgut$physeq, season == "winter")@sam_data))
+
+cmn_pcoas_stats_noHindgut = lapply(list(c("summer", "origin"), c("winter", "origin"), 
+                              c("crop", "season"), c("mouth", "season")), function(v) {
+                                if (v[2] == "origin") {
+                                  ps = cmn_noHindgut$physeq %>% filter_sample_data(season == v[1])
+                                } else {
+                                  ps = cmn_noHindgut$physeq %>% filter_sample_data(origin == v[1])
+                                }
+                              return(betadiv_stats(ps, parameter = v[2]))
+                              })
+names(cmn_pcoas_stats_noHindgut) = c("summer_samType", "winter_samType", "crop_season", "mouth_season")
+```

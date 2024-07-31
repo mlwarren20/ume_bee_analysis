@@ -1,0 +1,79 @@
+---
+title: "Figure 7"
+author: "MW"
+date: "2024-02-03"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r setup, echo=FALSE}
+library(tidyverse)
+library(ggtext)
+library(vegan)
+library(phyloseq)
+library(ggtext)
+source("helper_functions.R")
+```
+
+This code creates Figure 7. We use the OTU phyloseq object (cmnOTU) created in "Figure_2_and_S2_Rmd".  
+
+Set the colors and labels we will use in the plots. 
+```{r aesthetics}
+class_colors = c("generalist" = "black", "summer_specialist" = "black", "winter_specialist" = "black", "too_rare" = "black")
+class_fills = c("generalist" = "#59f4a2", "summer_specialist" = "white", "winter_specialist" = "black", "too_rare" = "#a259f4")
+clam_labs = c("summer_specialist" = "summer\nspecialist", "winter_specialist" = "winter\nspecialist", "generalist" = "generalist", "too_rare" = "too rare")
+```
+
+Here we compare the OTUs found in the crop and mouth in both the summer and the winter. First we do a clam test on each sample type and use the data to create the plots. 
+```{r orig_clams}
+orig_clams = lapply(c("crop", "mouth"), function(v) {
+  ps = cmnOTU
+  ps2 = prune_samples(ps@sam_data$origin == v, ps)
+  ps2 = prune_taxa(taxa_sums(ps2) != 0, ps2)
+  sam_type = paste0(unique(ps2@sam_data$season), "_specialist")
+  if (taxa_are_rows(ps2)) {
+    ps2@otu_table = t(ps2@otu_table)
+  }
+  df = clamtest(ps2@otu_table, ps2@sam_data$season) %>% 
+    rowwise() %>% 
+    mutate(Classes = ifelse(grepl("rare", Classes), 
+                            "too_rare", ifelse(grepl("Specialist", Classes), 
+                                               paste0(str_split_i(Classes, "_", 2), 
+                                                     "_specialist"), "generalist")))
+  df$Classes = factor(df$Classes, levels = c(sam_type, "generalist", "too_rare"))
+  cl_p = clam_plot(df1= df, title = v)
+  cl_bp = clam_barplot(df, title = v)
+  return(list("clam_df" = df, "clam_plot" = cl_p, "clam_barplot" = cl_bp))
+})
+
+names(orig_clams) = c("crop", "mouth")
+```
+
+This code creates Figure 7. 
+```{r fig7}
+fig7_plot = grid.arrange(orig_clams$crop$clam_plot + theme(axis.title.x = element_blank()), 
+             orig_clams$mouth$clam_plot + theme(axis.title.x = element_blank(), axis.title.y = element_blank()),
+             textGrob(bquote("Log(summer" ~ASV[97]~ "abundance + 1)"), gp = gpar(fontsize = 12), just = "top"),
+             orig_clams$crop$clam_barplot, 
+             orig_clams$mouth$clam_barplot + theme(axis.title.y = element_blank()), 
+             layout_matrix = rbind(c(3, 3, NA, 4, 4), c(3, 3, 5, 4, 4), c(NA, 5, 5, 5, NA), c(6, 6, 6, 7, 7)), 
+             widths = c(0.25, 0.225, 0.05, 0.225, 0.25), heights = c(0.45, 0.1, 0.1, 0.35))
+```
+
+Jpeg figure 7 created using the following code: 
+```{r fig7_jpg}
+top.vp = viewport(layout = grid.layout(3, 3, widths = unit(c(26, 228, 26), "mm"), heights = unit(c(26, 171, 26), "mm")))
+plot.vp = viewport(layout.pos.col = 2, layout.pos.row = 2, name = "plot")
+splot = vpTree(top.vp, vpList(plot.vp))
+
+jpeg(filename = "Fig7.jpg", width = 280, height = 223, units = "mm", pointsize = 16, res = 400)
+pushViewport(splot)
+seekViewport("plot")
+grid.draw(fig7_plot)
+popViewport()
+dev.off()
+```
+
