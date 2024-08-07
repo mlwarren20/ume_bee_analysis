@@ -26,6 +26,7 @@ library(DECIPHER)
 library(Biostrings)
 library(gridExtra)
 library(grid)
+library(circlize)
 detach("package:microbiome", unload = T)
 source("helper_functions.R")
 ```
@@ -119,9 +120,9 @@ Figure 6 constants for heatmap. **Only run to create *Figure 5* heatmap**
 DATA <- cmn_dsq_prevalence
 TAXA <- cmn_dsq50
 ROOT <- "ASV_31"
-heatmap_coloring <- colorRamp2(leg_break, c("black", viridis(10, option = "H", begin = 0.1)))
 leg_break <- c(0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1)
 leg_labels <- c(0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100)
+heatmap_coloring <- colorRamp2(leg_break, c("black", viridis(10, option = "H", begin = 0.1)))
 heatmap_leg_params = list(at = leg_break, labels = leg_labels, title = "Prevalence %")
 ```
 
@@ -159,7 +160,7 @@ PHYLOGENY <- chronos(ps_rooted_tree)
 # Sample clustering
 # rbiom::unifrac assumes rows are taxa and columns are samples
 samples_clustered <- rbiom::unifrac(biom = t(COMMUNITY), weighted = T, tree = ps_tree)
-SAMPLE_CLUSTERS <- rev(hclust(samples_clustered, method = "complete"))
+SAMPLE_CLUSTERS <- hclust(samples_clustered, method = "complete")
 
 ```
 Set up annotations for the heatmap. 
@@ -200,7 +201,7 @@ fun_args <- list(mat = as.matrix(COMMUNITY), cluster_cols = as.hclust.phylo(PHYL
 # row_colors$Phylum <- phyla_cols
 
 cmn_HM = draw(Heatmap(matrix = fun_args$mat, col = heatmap_coloring, 
-                      cluster_rows = fun_args$cluster_rows, 
+                      cluster_rows = fun_args$cluster_rows,
                       cluster_columns = fun_args$cluster_cols, 
                       row_dend_width = unit(1.5, "cm"), 
                       column_names_rot = fun_args$angle_col, 
@@ -280,7 +281,7 @@ Jpeg of figure 6 was created with the following code:
 jpeg(filename = "Fig6.jpg", width = 500, height = 350, units = "mm", res = 400, pointsize = 16)
 par(mai = c(1, 1, 1, 1))
 draw(Heatmap(matrix = fun_args$mat, col = heatmap_coloring, 
-                      cluster_rows = fun_args$cluster_rows, 
+                      cluster_rows = rev(fun_args$cluster_rows), 
                       cluster_columns = fun_args$cluster_cols, 
                       row_dend_width = unit(1.5, "cm"), 
                       column_names_rot = fun_args$angle_col, 
@@ -298,5 +299,5 @@ draw(Heatmap(matrix = fun_args$mat, col = heatmap_coloring,
                       heatmap_legend_param = heatmap_leg_params, 
                       width = unit(295, "mm"), height = unit(150, "mm")), 
               heatmap_legend_side = "left")
-
+dev.off()
 ```

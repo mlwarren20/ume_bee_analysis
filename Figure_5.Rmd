@@ -34,7 +34,7 @@ Load in the data.
 ```{r data_load}
 sample_metadata <- read_csv("Supplementary_data_1.csv")
 
-qpcr_data <- read_csv("Supplementary_data_5.csv") 
+qpcr_data <- read_csv("Supplementary_data_3.csv") 
 
 qd <- left_join(qpcr_data, sample_metadata, by = join_by("samples" == "sample")) %>% 
   mutate(quantification = as.numeric(quantification), 
@@ -134,7 +134,7 @@ jpeg(filename = "Fig5.jpg", width = 375, height = 200, units = "mm", res = 400, 
 grid.arrange(abs_pcoa_plot, g, textGrob("B", gp = gpar(col = "black", fontsize = 16), vjust = 1), layout_matrix = rbind(c(1, 1, 1, 3, NA, NA), c(1, 1, 1, NA, 2, 2), c(1, 1, 1, NA, 2, 2), c(1, 1, 1, NA, 2, 2), c(1, 1, 1, NA, 2, 2), c(1, 1, 1, NA, 2, 2), c(1, 1, 1, NA, NA, NA), c(1, 1, 1, NA, NA, NA)), heights = c(0.01, 0.14, 0.14, 0.14, 0.14, 0.14, 0.14, 0.13), widths = c(0.2, 0.2, 0.2, 0.01, 0.19, 0.2))
 draw(samType_leg, x = unit(0.3, "npc"), y = unit(0.6, "npc"), just = c("right", "top"))
 draw(species_shape_legend, x = unit(0.3, "npc"), y = unit(0.5, "npc"), just = c("right", "top"))
-grid.lines(x = unit(c(0.23, 0.248), "npc"), y = unit(0.4655, "npc"), gp = gpar(lty = "dashed", lwd = 1))
+grid.lines(x = unit(c(0.23, 0.245), "npc"), y = unit(0.464, "npc"), gp = gpar(lty = "dashed", lwd = 1))
 grid.lines(x = unit(c(0.23, 0.242), "npc"), y = unit(0.447, "npc"), gp = gpar(lty = "solid", lwd = 1))
 dev.off()
 ```

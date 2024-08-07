@@ -28,7 +28,7 @@ site_colors = c("Oshine 1" = "#f9b93a", "Nishi-honjo" = "#c7ee34", "Ichiigawa" =
 
 Load the tree file and root the tree. 
 ```{r aktree}
-ak_tree <- ape::read.tree("Supplementary_data_3.nex.treefile")
+ak_tree <- ape::read.tree("Supplementary_data_4.nex.treefile")
 ak_tree_rooted <- root.phylo(ak_tree, outgroup = "Fhon13_OX335302.1")
 ```
 
@@ -39,7 +39,7 @@ ak_tree <- drop.tip(ak_tree_rooted, c("S_11", "S_48", "S_27", "S_29", "W_32-1", 
 
 Load sample metadata. 
 ```{r ak_metadata}
-metadata <- read_csv("Supplementary_data_4.csv")
+metadata <- read_csv("Supplementary_data_5.csv")
 
 # Rename Fhon13 to its full name.
 metadata[which(grepl("Fhon13", metadata$sample)), "sample"] = "Fhon13_OX335302.1"
@@ -63,13 +63,13 @@ This code makes Figure 8. We removed the root for ease of visualization and visu
 ```{r fig8}
 fig8tree <- tree_fun(drop.tip(ak_tree, "Fhon13_OX335302.1"))
 fig8_plot = fig8tree + geom_tiplab(aes(color = factor(hl), label = tag), align = F, linesize = 0.25, offset = 0.0003) +
-    geom_text(data = subset(fig7tree$data, !isTip & shalrt != 0 & !node %in% c(44,46,47,48,49,60,65,66,77,78,79)), 
+    geom_text(data = subset(fig8tree$data, !isTip & shalrt != 0 & !node %in% c(44,46,47,48,49,60,65,66,77,78,79)), 
               aes(label = paste(shalrt, ufbs, sep = "/")), size = 2.5, nudge_x = -0.001, nudge_y = 0.4) + 
-    geom_text(data = subset(fig7tree$data, !isTip & shalrt != 0 & node == 77), 
+    geom_text(data = subset(fig8tree$data, !isTip & shalrt != 0 & node == 77), 
             aes(label = paste(shalrt, ufbs, sep = "/")), size = 2.5, nudge_x = -0.001, nudge_y = -0.4) + 
-    geom_text(data = subset(fig7tree$data, !isTip & shalrt != 0 & node %in% c(46,47,48,49,60,65,66,79)), 
+    geom_text(data = subset(fig8tree$data, !isTip & shalrt != 0 & node %in% c(46,47,48,49,60,65,66,79)), 
             aes(label = paste(shalrt, ufbs, sep = "/")), size = 2.5, nudge_x = -0.0013, nudge_y = 0.4) + 
-    geom_text(data = subset(fig7tree$data, !isTip & shalrt != 0 & node %in% c(44,78)), 
+    geom_text(data = subset(fig8tree$data, !isTip & shalrt != 0 & node %in% c(44,78)), 
             aes(label = paste(shalrt, ufbs, sep = "/")), size = 2.5, nudge_x = -0.00145, nudge_y = 0.4) +
     xlim(0, 0.05) + 
     geom_treescale(x = 0, y = -3, width = 0.01, linesize = 0.8) +
@@ -83,8 +83,8 @@ figS6.Atree <- tree_fun(ak_tree, branch.length = "none")
 figS6.Atree + 
   geom_tippoint(aes(fill = factor(new_site)), size = 3, shape = 23, position = position_nudge(x = 0.05)) + 
   geom_tiplab(aes(color = factor(bee_species), label = isolate), align = F, linesize = 0.25, offset = 0.15) +
-  geom_text(data = subset(figS7.Atree$data, !isTip & node != 50), aes(label = label), size = 2.5, nudge_x = -0.75, nudge_y = 0.4) + 
-  geom_text(data = subset(figS7.Atree$data, !isTip & node == 50), aes(label = label), size = 2.5, nudge_x = -0.75, nudge_y = -0.4) + 
+  geom_text(data = subset(figS6.Atree$data, !isTip & node != 50), aes(label = label), size = 2.5, nudge_x = -0.75, nudge_y = 0.4) + 
+  geom_text(data = subset(figS6.Atree$data, !isTip & node == 50), aes(label = label), size = 2.5, nudge_x = -0.75, nudge_y = -0.4) + 
   xlim(0, 20) + 
   scale_fill_viridis(name = "Sites", discrete = T, option = "H") + 
   scale_color_manual(name = "Bee species", 

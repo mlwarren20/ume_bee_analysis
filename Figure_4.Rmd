@@ -21,7 +21,7 @@ source("helper_functions.R")
 
 Here are the color and shape schemes used. 
 ```{r aesthetics}
-origin_colors = c("mouth" = "#bc4b51", "crop" = "#f4a259", "nectar" = "#648FFF")
+origin_colors = c("crop" = "#f4a259", "mouth" = "#bc4b51", "nectar" = "#648FFF")
 bee_shapes = c("cerana" = 16, "mellifera" = 17)
 ```
 
@@ -63,7 +63,7 @@ fig4_plot =grid.arrange(cmn_ps_pcoas$crop_summer[[1]]$pcoa_w_ell + basic_theme +
                                    c(NA, NA, 5, 5, 5, NA), c(NA, 6, 6, 6, 6, NA)), 
              widths = c(0.03, 0.44, 0.04, 0.02, 0.42, 0.05), 
              heights = c(0.05, 0.28, 0.02, 0.28, 0.023, 0.017, 0.29, 0.04))
-samType_leg = Legend(at = c("mouth", "crop", "nectar"), title = "Sample type", title_gp = gpar(fontsize = 16, fontface = "bold"), legend_gp = gpar(fill = origin_colors[c(1,2,3)]), grid_height = unit(6, "mm"), grid_width = unit(6, "mm"), labels_gp = gpar(fontsize = 15))
+samType_leg = Legend(at = c("crop", "mouth", "nectar"), title = "Sample type", title_gp = gpar(fontsize = 16, fontface = "bold"), legend_gp = gpar(fill = origin_colors[c(1,2,3)]), grid_height = unit(6, "mm"), grid_width = unit(6, "mm"), labels_gp = gpar(fontsize = 15))
 species_shape_legend = Legend(at = c("Apis cerana", "Apis mellifera"), title = "Bee species", title_gp = gpar(fontsize = 16, fontface = "bold"), labels_gp = gpar(fontface = "italic", fontsize = 15), graphics = list(function(x, y, w, h) grid.points(x, y, pch = 1, size = unit(4.8, "mm")), function(x, y, w, h) grid.points(x, y, pch = 2, size = unit(4.8, "mm"))))
 ```
 
